@@ -80,11 +80,32 @@ build_and_push() {
   local name="$1"
   local context_rel="$2"
   local image="${AR_HOST}/${PROJECT_ID}/${AR_REPO}/${name}:${TAG}"
+  local src_dir="${ROOT_DIR}/${context_rel}"
+  local stage_dir
+
+  stage_dir="$(mktemp -d "/private/tmp/dativerso-cloudbuild-${name}.XXXXXX")"
+  trap 'rm -rf "${stage_dir}"' RETURN
+
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a \
+      --exclude '.git' \
+      --exclude '__pycache__' \
+      --exclude '.DS_Store' \
+      --exclude '.pytest_cache' \
+      "${src_dir}/" "${stage_dir}/"
+  else
+    cp -R "${src_dir}/." "${stage_dir}/"
+    find "${stage_dir}" -name '__pycache__' -type d -prune -exec rm -rf {} +
+    find "${stage_dir}" -name '.DS_Store' -type f -delete
+  fi
 
   echo "Cloud Build submit: ${image}"
-  gcloud builds submit "${ROOT_DIR}/${context_rel}" \
+  gcloud builds submit "${stage_dir}" \
     --project "${PROJECT_ID}" \
     --tag "${image}"
+
+  rm -rf "${stage_dir}"
+  trap - RETURN
 }
 
 ctx_for() {

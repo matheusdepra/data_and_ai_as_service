@@ -35,14 +35,18 @@ async def upload_file(
     source: str | None = Form(default=None),
     dataset: str | None = Form(default=None),
 ):
-    token = auth.get_bearer_token(request)
-    claims = auth.get_claims(settings, token)
     if settings.identity_api_base_url:
-        me = resolve_me(settings, token)
+        me = resolve_me(settings, request)
         tenant_id_raw = str(me.get("tenant_id") or "")
         if not tenant_id_raw.strip():
             raise HTTPException(status_code=403, detail="tenant not resolved")
     else:
+        gateway_claims = auth.get_gateway_claims(request)
+        if gateway_claims is not None:
+            claims = gateway_claims
+        else:
+            token = auth.get_bearer_token(request)
+            claims = auth.get_claims(settings, token)
         tenant_id_raw = auth.get_tenant_id(settings, claims)
 
     tenant_id = naming.normalize_tenant_id(tenant_id_raw)
@@ -105,14 +109,18 @@ async def upload_file(
 
 @app.get("/v1/ingestions/{ingestion_id}")
 def get_ingestion(request: Request, ingestion_id: str):
-    token = auth.get_bearer_token(request)
-    claims = auth.get_claims(settings, token)
     if settings.identity_api_base_url:
-        me = resolve_me(settings, token)
+        me = resolve_me(settings, request)
         tenant_id_raw = str(me.get("tenant_id") or "")
         if not tenant_id_raw.strip():
             raise HTTPException(status_code=403, detail="tenant not resolved")
     else:
+        gateway_claims = auth.get_gateway_claims(request)
+        if gateway_claims is not None:
+            claims = gateway_claims
+        else:
+            token = auth.get_bearer_token(request)
+            claims = auth.get_claims(settings, token)
         tenant_id_raw = auth.get_tenant_id(settings, claims)
     tenant_id = naming.normalize_tenant_id(tenant_id_raw)
 

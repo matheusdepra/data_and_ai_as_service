@@ -10,7 +10,8 @@ Receber arquivos (CSV/JSON/Parquet) via REST, persistir em `GCS landing` e dispa
 - O cliente nao pode informar `tenant_id` via header/body/path.
 
 Nota (API Gateway):
-- quando a API esta na frente do **GCP API Gateway**, o token do usuario pode ser encaminhado em `X-Forwarded-Authorization`.
+- quando a API esta na frente do **GCP API Gateway**, o backend deve priorizar `X-Apigateway-Api-Userinfo` e pode usar `X-Forwarded-Authorization` como fallback.
+- no gateway publico, as chamadas tambem exigem `x-api-key`.
 
 ## Endpoints (proposta)
 

@@ -22,11 +22,18 @@ Implementacao recomendada (MVP): Node.js com Firebase Admin SDK (o SDK valida ID
 
 Nota (API Gateway):
 - quando a API esta na frente do **GCP API Gateway**, o header `Authorization` pode ser sobrescrito (service-to-service auth).
-- o token original do usuario costuma chegar em `X-Forwarded-Authorization`.
+- o backend deve priorizar `X-Apigateway-Api-Userinfo` e pode usar `X-Forwarded-Authorization` como fallback.
+- no gateway publico, as chamadas tambem exigem `x-api-key`.
 
 ### Header
 Todas as rotas (exceto `/healthz`) exigem:
 ```
+Authorization: Bearer <firebase_id_token>
+```
+
+Via API Gateway:
+```http
+x-api-key: <gateway_api_key>
 Authorization: Bearer <firebase_id_token>
 ```
 
@@ -43,6 +50,10 @@ Regras (MVP):
 Bootstrap (primeiro admin):
 - criar `tenants/{tenant_id}` manualmente
 - criar `invites` para o email do admin (ou criar `memberships/{sub}` diretamente)
+
+Importante:
+- "Invite" aqui e convite **para usar o SaaS** (Dativerso).
+- Nao cria, altera, nem concede acesso a recursos do **GCP IAM**.
 
 ## Endpoints
 
@@ -96,8 +107,12 @@ Response (inclui `login_url` para onde voce direciona o usuario a entrar com mag
 ### GET /v1/invites?status=pending (admin)
 Lista convites do tenant (filtro opcional `status`).
 
-### POST /v1/invites/{invite_id}:revoke (admin)
+### POST /v1/invites/{invite_id}/revoke (admin)
 Revoga um convite pendente.
+
+Nota:
+- a rota publica via API Gateway usa `/v1/invites/{invite_id}/revoke`
+- o backend tambem aceita o formato legado `/v1/invites/{invite_id}:revoke` por compatibilidade
 
 ## Configuracao (env vars)
 

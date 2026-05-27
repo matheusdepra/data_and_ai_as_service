@@ -29,11 +29,38 @@ function authHeader(req) {
   return v.slice("bearer ".length).trim();
 }
 
+function decodeGatewayUserinfo(value) {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return null;
+  }
+  try {
+    const normalized = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const padding = "=".repeat((4 - (normalized.length % 4)) % 4);
+    const decoded = Buffer.from(normalized + padding, "base64").toString("utf8");
+    const payload = JSON.parse(decoded);
+    return payload && typeof payload === "object" ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
 async function requireAuth(req, res, next) {
+  const userinfo = decodeGatewayUserinfo(
+    req.get("X-Apigateway-Api-Userinfo") || req.get("x-apigateway-api-userinfo")
+  );
+  if (userinfo) {
+    const sub = userinfo.sub || userinfo.user_id;
+    const email = userinfo.email;
+    if (!sub || !email) return res.status(401).json({ detail: "missing gateway claims" });
+    req.user = { sub: String(sub), email: normalizeEmail(email) };
+    return next();
+  }
+
   const token = authHeader(req);
   if (!token) return res.status(401).json({ detail: "missing Authorization header" });
   try {
@@ -238,9 +265,11 @@ app.get("/v1/invites", requireAuth, requireCtx, requireAdmin, async (req, res) =
   res.json(out);
 });
 
-// Keep contract: POST /v1/invites/{invite_id}:revoke
+// Accept both:
+// - POST /v1/invites/{invite_id}:revoke
+// - POST /v1/invites/{invite_id}/revoke
 app.post(
-  /^\/v1\/invites\/([^/]+):revoke$/,
+  /^\/v1\/invites\/([^/]+)(?::revoke|\/revoke)$/,
   requireAuth,
   requireCtx,
   requireAdmin,

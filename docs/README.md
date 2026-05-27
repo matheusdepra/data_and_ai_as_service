@@ -2,6 +2,7 @@
 
 ## Arquitetura
 - [architecture.md](architecture.md)
+- [project/status-2026-05-27.md](project/status-2026-05-27.md)
 
 ## API
 - [api/ingestion-api.md](api/ingestion-api.md)
@@ -21,6 +22,12 @@
 
 ## Custos
 - [cost/guardrails.md](cost/guardrails.md)
+- [cost/auth-firestore-apigw-cost-notes.md](cost/auth-firestore-apigw-cost-notes.md)
+
+## Runbooks
+- [runbooks/bootstrap-tenant.md](runbooks/bootstrap-tenant.md)
+- [runbooks/dev-infra-outputs.md](runbooks/dev-infra-outputs.md)
+- [runbooks/manual-api-tests.md](runbooks/manual-api-tests.md)
 
 ## Backlog
 - [backlog/mvp-phases.md](backlog/mvp-phases.md)

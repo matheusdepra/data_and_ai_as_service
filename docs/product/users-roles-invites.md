@@ -64,6 +64,10 @@ Bootstrap (MVP):
 - criar `tenants/{tenant_id}` no Firestore
 - criar `memberships/{sub}` do primeiro admin (ou criar um invite para o email do admin e deixar o "primeiro login" aceitar)
 
+Importante:
+- Convites (`invites`) sao **do SaaS Dativerso**, nao tem relacao com acesso ao GCP/Console.
+- Eles so controlam quem consegue ter `membership` (tenant/role) dentro do produto.
+
 ### 2) Convite (Admin -> Usuario)
 1. Admin informa email + papel.
 2. Plataforma cria `Invite` e envia email.

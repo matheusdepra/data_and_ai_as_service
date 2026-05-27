@@ -45,6 +45,22 @@ def get_bearer_token(request: Request) -> str:
     return auth.split(" ", 1)[1].strip()
 
 
+def get_gateway_claims(request: Request) -> dict[str, Any] | None:
+    raw = (
+        request.headers.get("x-apigateway-api-userinfo")
+        or request.headers.get("X-Apigateway-Api-Userinfo")
+    )
+    if not raw:
+        return None
+    try:
+        decoded = json.loads(_b64url_decode(raw).decode("utf-8"))
+    except Exception:
+        raise HTTPException(status_code=401, detail="invalid gateway auth header")
+    if not isinstance(decoded, dict):
+        raise HTTPException(status_code=401, detail="invalid gateway auth header")
+    return decoded
+
+
 def get_claims(settings: Settings, token: str) -> dict[str, Any]:
     if settings.auth_mode == "unverified_jwt":
         try:
