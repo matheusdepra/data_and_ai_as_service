@@ -1,0 +1,5 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+google-cloud-run==0.16.0
+google-cloud-bigquery==3.25.0
+
