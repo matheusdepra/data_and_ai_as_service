@@ -48,6 +48,7 @@
 
 ## Frontend
 - [frontend/wireflow-datalake-mvp.md](frontend/wireflow-datalake-mvp.md)
+- [frontend/auth-login-flow.md](frontend/auth-login-flow.md)
 
 ## Implementacao (scaffold)
 - `services/ingestion_api`: API REST (Cloud Run)

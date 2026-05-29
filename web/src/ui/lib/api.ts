@@ -40,15 +40,31 @@ export type UploadResponse = {
   gcs_uri_landing: string;
 };
 
+export type MeResponse = {
+  sub: string;
+  email: string;
+  tenant_id: string;
+  role: string;
+};
+
 function baseUrl(): string {
-  const v = import.meta.env.VITE_INGESTION_API_BASE_URL as string | undefined;
-  if (!v) throw new Error("Missing VITE_INGESTION_API_BASE_URL");
+  const v =
+    (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
+    (import.meta.env.VITE_INGESTION_API_BASE_URL as string | undefined);
+  if (!v) throw new Error("Missing VITE_API_BASE_URL (ou VITE_INGESTION_API_BASE_URL)");
   return v.replace(/\/$/, "");
 }
 
 function authHeaders(jwt: string): HeadersInit {
-  if (!jwt) return {};
-  return { Authorization: `Bearer ${jwt}` };
+  const headers: Record<string, string> = {};
+  const apiKey = (import.meta.env.VITE_API_KEY as string | undefined)?.trim();
+  if (apiKey) {
+    headers["x-api-key"] = apiKey;
+  }
+  if (jwt) {
+    headers.Authorization = `Bearer ${jwt}`;
+  }
+  return headers;
 }
 
 async function json<T>(res: Response): Promise<T> {
@@ -73,6 +89,14 @@ export async function uploadFile(args: { jwt: string; file: File; source: string
   return json<UploadResponse>(res);
 }
 
+export async function getMe(args: { jwt: string }): Promise<MeResponse> {
+  const res = await fetch(`${baseUrl()}/v1/me`, {
+    method: "GET",
+    headers: authHeaders(args.jwt),
+  });
+  return json<MeResponse>(res);
+}
+
 export async function getIngestionDetail(args: { jwt: string; ingestionId: string }): Promise<IngestionDetail> {
   const res = await fetch(`${baseUrl()}/v1/ingestions/${encodeURIComponent(args.ingestionId)}`, {
     method: "GET",
@@ -80,4 +104,3 @@ export async function getIngestionDetail(args: { jwt: string; ingestionId: strin
   });
   return json<IngestionDetail>(res);
 }
-

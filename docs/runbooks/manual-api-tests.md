@@ -161,3 +161,14 @@ Esperado:
 ### 429 / problemas de gateway
 - validar `x-api-key`
 - conferir se a rota esta sendo chamada pelo hostname do gateway
+
+### 403 `API ... is not enabled for the project`
+- a `API key` foi aceita, mas o projeto consumidor dela ainda nao tinha o **managed service** do API Gateway habilitado
+- neste repo, o Terraform agora tenta habilitar automaticamente o service `*.apigateway.<project>.cloud.goog`
+- se acabou de aplicar, aguarde alguns minutos de propagacao
+- para checagem manual:
+
+```bash
+gcloud services api-keys lookup "${API_KEY}"
+gcloud services list --enabled --project daas-mvp-472103 | grep apigateway
+```

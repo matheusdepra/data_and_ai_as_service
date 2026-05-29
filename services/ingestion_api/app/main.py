@@ -5,6 +5,7 @@ import uuid
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi import HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
 from google.cloud import storage
 
@@ -17,6 +18,14 @@ from .settings import load_settings
 settings = load_settings()
 
 app = FastAPI(title="Dativerso Ingestion API", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=False,
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
+)
 
 gcs = storage.Client()
 bq = bigquery.Client()

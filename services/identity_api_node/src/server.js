@@ -19,6 +19,17 @@ admin.initializeApp({
 const db = admin.firestore();
 
 const app = express();
+
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "http://localhost:5173");
+  res.setHeader("Access-Control-Allow-Methods", "GET,POST,OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Authorization,Content-Type,X-API-Key");
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+  return next();
+});
+
 app.use(express.json({ limit: "1mb" }));
 
 function authHeader(req) {

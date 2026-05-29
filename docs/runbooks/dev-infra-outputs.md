@@ -46,5 +46,7 @@ Data de referencia: 2026-05-27
 - As rotas protegidas no gateway exigem:
   - `Authorization: Bearer <firebase_id_token>`
   - `x-api-key: <api_gateway_key>`
+- A `API key` deve ser criada no mesmo projeto do gateway (`daas-mvp-472103`) ou em um projeto onde o managed service do gateway esteja habilitado
+- O managed service do gateway segue o padrao `*.apigateway.daas-mvp-472103.cloud.goog` e pode exigir alguns minutos de propagacao apos o apply
 - O upload continua entrando por `POST /v1/files`
 - O acompanhamento de ingestao continua em `GET /v1/ingestions/{ingestion_id}`
