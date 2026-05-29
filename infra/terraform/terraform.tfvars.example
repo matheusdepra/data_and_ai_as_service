@@ -1,0 +1,43 @@
+# Copy to terraform.tfvars and adjust as needed.
+
+project_id      = "daas-mvp-472103m"
+env             = "dev"
+
+# Cloud Run/Eventarc/Artifact Registry are regional. Use a Cloud Run region (not "US").
+region          = "us-central1"
+
+# BigQuery + GCS can be multi-region "US" (good default for cost/simplicity).
+bq_location     = "US"
+bucket_location = "US"
+
+# Dev-only suggestion:
+auth_mode = "unverified_jwt"
+
+# When you deploy production auth, fill these:
+auth_jwks_url = ""
+auth_issuer   = ""
+auth_audience = ""
+
+# In dev, you can expose the API publicly (recommend restricting in prod).
+ingestion_api_invokers = ["allUsers"]
+
+# Container images (set after you push to Artifact Registry).
+ingestion_api_image    = ""
+ingestion_router_image = ""
+bronzeify_image        = ""
+silverize_image        = ""
+
+# Identity API (Firebase + Firestore membership store)
+identity_api_image   = ""
+firebase_project_id  = "" # ex.: "daas-mvp-472103" (o mesmo project_id, se Firebase estiver no mesmo projeto)
+frontend_base_url    = "" # ex.: "https://app.dativerso.com"
+
+# Firestore database (greenfield only). Keep false if Firestore already exists and you don't want TF to create/manage it.
+create_firestore_database = false
+firestore_location_id    = "nam5"
+
+# API Gateway (unified entrypoint)
+enable_api_gateway   = false
+api_gateway_api_id   = ""
+api_gateway_id       = ""
+api_gateway_config_id = "v1"

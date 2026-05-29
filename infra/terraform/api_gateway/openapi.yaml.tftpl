@@ -1,0 +1,199 @@
+swagger: "2.0"
+info:
+  title: "Dativerso API"
+  description: "Unified API entrypoint (API Gateway) routing to Cloud Run services."
+  version: "0.1.0"
+
+schemes:
+  - https
+
+produces:
+  - application/json
+
+consumes:
+  - application/json
+
+x-google-allow: configured
+
+securityDefinitions:
+  firebase:
+    authorizationUrl: ""
+    flow: "implicit"
+    type: "oauth2"
+    x-google-issuer: "https://securetoken.google.com/${firebase_project_id}"
+    x-google-jwks_uri: "https://www.googleapis.com/service_accounts/v1/metadata/x509/securetoken@system.gserviceaccount.com"
+    x-google-audiences: "${firebase_project_id}"
+  api_key:
+    type: "apiKey"
+    name: "x-api-key"
+    in: "header"
+
+security:
+  - firebase: []
+    api_key: []
+
+paths:
+  /healthz:
+    get:
+      security:
+        - api_key: []
+      operationId: healthz
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/me:
+    options:
+      security:
+        - api_key: []
+      operationId: meOptions
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: me
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/invites:
+    options:
+      security:
+        - api_key: []
+      operationId: invitesOptions
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: listInvites
+      parameters:
+        - name: status
+          in: query
+          required: false
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    post:
+      operationId: createInvite
+      parameters:
+        - in: body
+          name: body
+          schema:
+            type: object
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/invites/{invite_id}/revoke:
+    options:
+      security:
+        - api_key: []
+      operationId: revokeInviteOptions
+      parameters:
+        - name: invite_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    post:
+      operationId: revokeInvite
+      parameters:
+        - name: invite_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/files:
+    options:
+      security:
+        - api_key: []
+      operationId: uploadFileOptions
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    post:
+      operationId: uploadFile
+      consumes:
+        - multipart/form-data
+      parameters:
+        - name: file
+          in: formData
+          required: true
+          type: string
+        - name: source
+          in: formData
+          required: false
+          type: string
+        - name: dataset
+          in: formData
+          required: false
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/ingestions/{ingestion_id}:
+    options:
+      security:
+        - api_key: []
+      operationId: getIngestionOptions
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: getIngestion
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS

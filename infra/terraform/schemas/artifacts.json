@@ -1,0 +1,10 @@
+[
+  { "name": "tenant_id", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "ingestion_id", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "layer", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "artifact_id", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "gcs_uri", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "bq_table", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "created_at", "type": "TIMESTAMP", "mode": "NULLABLE" }
+]
+

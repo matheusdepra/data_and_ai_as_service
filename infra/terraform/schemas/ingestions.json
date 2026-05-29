@@ -1,0 +1,20 @@
+[
+  { "name": "tenant_id", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "ingestion_id", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "status", "type": "STRING", "mode": "REQUIRED" },
+  { "name": "source", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "dataset", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "landed_gcs_uri", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "original_filename", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "content_type", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "size_bytes", "type": "INTEGER", "mode": "NULLABLE" },
+  { "name": "checksum_sha256", "type": "STRING", "mode": "NULLABLE" },
+  { "name": "received_at", "type": "TIMESTAMP", "mode": "NULLABLE" },
+  { "name": "landed_at", "type": "TIMESTAMP", "mode": "NULLABLE" },
+  { "name": "bronze_started_at", "type": "TIMESTAMP", "mode": "NULLABLE" },
+  { "name": "bronze_ready_at", "type": "TIMESTAMP", "mode": "NULLABLE" },
+  { "name": "silver_started_at", "type": "TIMESTAMP", "mode": "NULLABLE" },
+  { "name": "silver_ready_at", "type": "TIMESTAMP", "mode": "NULLABLE" },
+  { "name": "updated_at", "type": "TIMESTAMP", "mode": "NULLABLE" }
+]
+
