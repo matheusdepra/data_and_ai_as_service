@@ -147,6 +147,15 @@ resource "google_cloud_run_v2_service_iam_member" "ingestion_api_invokers" {
   member   = each.value
 }
 
+resource "google_cloud_run_v2_service_iam_member" "identity_invoker_ingestion_api" {
+  count = local.enable_ingestion_api && local.enable_identity_api ? 1 : 0
+
+  name     = google_cloud_run_v2_service.identity_api[0].name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ingestion_api.email}"
+}
+
 # Eventarc uses this identity to invoke the router service; grant it explicitly.
 resource "google_cloud_run_v2_service_iam_member" "router_invoker" {
   count    = local.enable_ingestion_router ? 1 : 0

@@ -48,6 +48,12 @@ resource "google_storage_bucket_iam_member" "bronze_writer" {
   member = "serviceAccount:${google_service_account.bronze_job.email}"
 }
 
+resource "google_storage_bucket_iam_member" "bronze_reader_bronze" {
+  bucket = google_storage_bucket.bronze.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.bronze_job.email}"
+}
+
 resource "google_storage_bucket_iam_member" "bronze_reader_silver" {
   bucket = google_storage_bucket.bronze.name
   role   = "roles/storage.objectViewer"
@@ -101,6 +107,12 @@ resource "google_project_iam_member" "bq_jobuser_bronze" {
 resource "google_project_iam_member" "bq_jobuser_silver" {
   project = var.project_id
   role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.silver_job.email}"
+}
+
+resource "google_project_iam_member" "bq_user_silver" {
+  project = var.project_id
+  role    = "roles/bigquery.user"
   member  = "serviceAccount:${google_service_account.silver_job.email}"
 }
 

@@ -47,8 +47,7 @@ paths:
 
   /v1/me:
     options:
-      security:
-        - api_key: []
+      security: []
       operationId: meOptions
       responses:
         "204":
@@ -67,8 +66,7 @@ paths:
 
   /v1/invites:
     options:
-      security:
-        - api_key: []
+      security: []
       operationId: invitesOptions
       responses:
         "204":
@@ -105,8 +103,7 @@ paths:
 
   /v1/invites/{invite_id}/revoke:
     options:
-      security:
-        - api_key: []
+      security: []
       operationId: revokeInviteOptions
       parameters:
         - name: invite_id
@@ -135,8 +132,7 @@ paths:
 
   /v1/files:
     options:
-      security:
-        - api_key: []
+      security: []
       operationId: uploadFileOptions
       responses:
         "204":
@@ -170,8 +166,7 @@ paths:
 
   /v1/ingestions/{ingestion_id}:
     options:
-      security:
-        - api_key: []
+      security: []
       operationId: getIngestionOptions
       parameters:
         - name: ingestion_id
