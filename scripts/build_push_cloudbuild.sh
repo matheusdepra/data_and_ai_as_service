@@ -83,7 +83,7 @@ build_and_push() {
   local src_dir="${ROOT_DIR}/${context_rel}"
   local stage_dir
 
-  stage_dir="$(mktemp -d "/private/tmp/dativerso-cloudbuild-${name}.XXXXXX")"
+  stage_dir="$(mktemp -d "${TMPDIR:-/tmp}/dativerso-cloudbuild-${name}.XXXXXX")"
   trap 'rm -rf "${stage_dir}"' RETURN
 
   if command -v rsync >/dev/null 2>&1; then

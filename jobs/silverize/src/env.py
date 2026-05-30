@@ -9,6 +9,7 @@ class Env:
     dv_env: str
     bq_meta_dataset: str
     bq_location: str
+    gcs_bronze_bucket: str
     tenant_id: str
     ingestion_id: str
     gcs_uri: str
@@ -32,6 +33,7 @@ def load_env() -> Env:
         dv_env=dv_env,
         bq_meta_dataset=bq_meta_dataset,
         bq_location=bq_location,
+        gcs_bronze_bucket=_req("GCS_BRONZE_BUCKET"),
         tenant_id=_req("DV_TENANT_ID"),
         ingestion_id=_req("DV_INGESTION_ID"),
         gcs_uri=_req("DV_GCS_URI"),

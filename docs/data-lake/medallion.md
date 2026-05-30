@@ -27,7 +27,9 @@ Formato recomendado (ASCII):
 - `tenant_id`: slug estavel, ex.: `acme`, `loja_123`, `cliente_xyz`
 
 Origem (MVP):
-- `tenant_id` e derivado do token (claim) na API. O cliente nao escolhe/override o tenant na request.
+- `tenant_id` e resolvido pela API a partir do token do usuario e do Membership store. O cliente nao escolhe/override o tenant na request.
+- Cada etapa do pipeline deve reconferir o escopo: o `tenant_id` e `ingestion_id` do path/metadata precisam bater com os valores recebidos pela funcao/job.
+- Artefatos de tenants diferentes nunca podem ser lidos, copiados, transformados ou retornados na mesma operacao.
 
 ## Paths (GCS)
 Usar sempre particao por data de ingestao + `ingestion_id` para idempotencia.

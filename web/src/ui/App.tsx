@@ -1,55 +1,66 @@
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { AppShell } from "./components/AppShell";
 import { LoginPage } from "./pages/LoginPage";
 import { CheckEmailPage } from "./pages/CheckEmailPage";
 import { CompleteLoginPage } from "./pages/CompleteLoginPage";
 import { SessionPage } from "./pages/SessionPage";
 import { UploadPage } from "./pages/UploadPage";
 import { TrackPage } from "./pages/TrackPage";
+import { DashboardPage } from "./pages/DashboardPage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
 
-function NavLink({ to, label }: { to: string; label: string }) {
-  const loc = useLocation();
-  const active = loc.pathname === to;
+function AuthFrame({ children }: { children: React.ReactNode }) {
   return (
-    <Link
-      to={to}
-      className={`navLink ${active ? "navLinkActive" : ""}`}
-    >
-      {label}
-    </Link>
+    <div className="authShell">
+      <header className="authTopbar">
+        <div className="brand brandRow">
+          <img src="/logo.jpeg" alt="Dativerso" className="brandLogo" />
+          <div>
+            <h1>Dativerso</h1>
+            <p>Dados organizados para sua empresa acompanhar, preparar e consumir com seguranca.</p>
+          </div>
+        </div>
+      </header>
+      {children}
+    </div>
   );
 }
 
 export function App() {
   const location = useLocation();
-  const isAuthRoute = location.pathname.startsWith("/login") || location.pathname.startsWith("/session");
+  const isLoginRoute = location.pathname.startsWith("/login");
+
+  const routes = (
+    <Routes>
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<DashboardPage />} />
+      <Route path="/session" element={<SessionPage />} />
+      <Route path="/upload" element={<UploadPage />} />
+      <Route path="/track" element={<TrackPage />} />
+      <Route path="/datasets" element={<PlaceholderPage kind="datasets" />} />
+      <Route path="/catalog" element={<PlaceholderPage kind="catalog" />} />
+      <Route path="/sources" element={<PlaceholderPage kind="sources" />} />
+      <Route path="/settings" element={<PlaceholderPage kind="settings" />} />
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+    </Routes>
+  );
+
+  if (isLoginRoute) {
+    return (
+      <AuthFrame>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login/check-email" element={<CheckEmailPage />} />
+          <Route path="/login/complete" element={<CompleteLoginPage />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthFrame>
+    );
+  }
 
   return (
-    <div className={`shell ${isAuthRoute ? "shellAuth" : ""}`}>
-      <div className="topbar">
-        <div className="brand brandRow">
-          <img src="/logo.jpeg" alt="Dativerso" className="brandLogo" />
-          <div>
-            <h1>Dativerso</h1>
-            <p>Dados organizados para gente de negocio. Sem senha, sem friccao, sem adivinhacao.</p>
-          </div>
-        </div>
-        <div className="nav">
-          <NavLink to="/login" label="Entrar" />
-          <NavLink to="/session" label="Sessao" />
-          <NavLink to="/upload" label="Upload" />
-          <NavLink to="/track" label="Acompanhar" />
-        </div>
-      </div>
-
-      <Routes>
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/login/check-email" element={<CheckEmailPage />} />
-        <Route path="/login/complete" element={<CompleteLoginPage />} />
-        <Route path="/session" element={<SessionPage />} />
-        <Route path="/upload" element={<UploadPage />} />
-        <Route path="/track" element={<TrackPage />} />
-      </Routes>
-    </div>
+    <AppShell>
+      {routes}
+    </AppShell>
   );
 }

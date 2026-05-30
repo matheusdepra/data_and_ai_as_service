@@ -1,14 +1,12 @@
-const GOOD = new Set(["silver_ready", "bronze_ready", "landed"]);
-const BAD = new Set(["bronze_failed", "silver_failed", "quarantined"]);
-const RUN = new Set(["bronze_running", "silver_running"]);
+import { friendlyStatus, statusTone } from "../lib/ingestion";
 
 export function StatusPill({ status }: { status: string }) {
-  const cls = RUN.has(status) ? "dotWarn" : BAD.has(status) ? "dotBad" : GOOD.has(status) ? "dotGood" : "";
+  const tone = statusTone(status);
+  const cls = tone === "running" ? "dotRun" : tone === "bad" ? "dotBad" : tone === "good" ? "dotGood" : "";
   return (
-    <span className="status">
+    <span className={`status status-${tone}`}>
       <span className={`dot ${cls}`} />
-      {status}
+      {friendlyStatus(status)}
     </span>
   );
 }
-

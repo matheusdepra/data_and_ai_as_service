@@ -34,15 +34,16 @@ def _extract_kv(object_name: str, key: str) -> str | None:
     return None
 
 
-def main() -> int:
-    env = load_env()
+def _extract_ingestion_id(object_name: str) -> str | None:
+    parts = object_name.split("/")
+    for i, part in enumerate(parts):
+        if part.startswith("ingestion_date=") and i + 1 < len(parts):
+            ingestion_id = parts[i + 1].strip()
+            return ingestion_id or None
+    return None
 
-    gcs = storage.Client()
-    bq = bigquery.Client()
-    run_jobs = run_v2.JobsClient()
-    meta = MetadataStore(bq_client=bq, dataset_id=env.bq_meta_dataset)
 
-    # Sanity check: event should come from landing bucket.
+def _validate_event_scope(env, meta: MetadataStore) -> bool:
     if env.event_bucket != env.gcs_landing_bucket:
         meta.insert_error(
             tenant_id=env.tenant_id,
@@ -51,6 +52,53 @@ def main() -> int:
             reason_code="unexpected_bucket",
             message=f"event bucket {env.event_bucket} != landing bucket {env.gcs_landing_bucket}",
         )
+        return False
+
+    if not env.event_object.startswith("landing/"):
+        meta.insert_error(
+            tenant_id=env.tenant_id,
+            ingestion_id=env.ingestion_id,
+            stage="bronze",
+            reason_code="unexpected_object_prefix",
+            message=f"event object is outside landing prefix: {env.event_object}",
+        )
+        return False
+
+    path_tenant_id = _extract_kv(env.event_object, "tenant_id")
+    if path_tenant_id != env.tenant_id:
+        meta.insert_error(
+            tenant_id=env.tenant_id,
+            ingestion_id=env.ingestion_id,
+            stage="bronze",
+            reason_code="tenant_mismatch",
+            message=f"event tenant_id {path_tenant_id or '-'} != job tenant_id {env.tenant_id}",
+        )
+        return False
+
+    path_ingestion_id = _extract_ingestion_id(env.event_object)
+    if path_ingestion_id != env.ingestion_id:
+        meta.insert_error(
+            tenant_id=env.tenant_id,
+            ingestion_id=env.ingestion_id,
+            stage="bronze",
+            reason_code="ingestion_mismatch",
+            message=f"event ingestion_id {path_ingestion_id or '-'} != job ingestion_id {env.ingestion_id}",
+        )
+        return False
+
+    return True
+
+
+def main() -> int:
+    env = load_env()
+
+    gcs = storage.Client()
+    bq = bigquery.Client()
+    run_jobs = run_v2.JobsClient()
+    meta = MetadataStore(bq_client=bq, dataset_id=env.bq_meta_dataset)
+
+    if not _validate_event_scope(env, meta):
+        return 1
 
     src_bucket = gcs.bucket(env.event_bucket)
     src_blob = src_bucket.blob(env.event_object, generation=env.event_generation)

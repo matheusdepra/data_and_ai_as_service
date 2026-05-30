@@ -11,14 +11,14 @@ export function TokenBox() {
   }, [status]);
 
   return (
-    <div className="card">
-      <div className="cardHeader">
-        <h2>Token</h2>
-        <span className="pill">localStorage</span>
+    <div className="panel">
+      <div className="panelHeader">
+        <h2>Acesso dev</h2>
+        <span className="pill">Fase 0</span>
       </div>
-      <div className="cardBody">
+      <div className="panelBody">
         <div className="field">
-          <label>JWT (dev)</label>
+          <label>ID token operacional</label>
           <input
             placeholder="Bearer token (sem o prefixo 'Bearer ')"
             value={token}
@@ -38,10 +38,9 @@ export function TokenBox() {
           >
             Salvar
           </button>
-          {status === "saved" ? <span className="pill">ok</span> : <span className="pill">cole um token e salve</span>}
+          {status === "saved" ? <span className="pill">Salvo</span> : <span className="pill">localStorage</span>}
         </div>
       </div>
     </div>
   );
 }
-

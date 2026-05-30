@@ -47,6 +47,39 @@ def _staging_table_id(ingestion_id: str) -> str:
     return t
 
 
+def _extract_kv(object_name: str, key: str) -> str | None:
+    for part in object_name.split("/"):
+        if part.startswith(f"{key}="):
+            v = part.split("=", 1)[1].strip()
+            return v or None
+    return None
+
+
+def _extract_ingestion_id(object_name: str) -> str | None:
+    parts = object_name.split("/")
+    for i, part in enumerate(parts):
+        if part.startswith("ingestion_date=") and i + 1 < len(parts):
+            ingestion_id = parts[i + 1].strip()
+            return ingestion_id or None
+    return None
+
+
+def _validate_bronze_scope(env, bucket_name: str, object_name: str) -> None:
+    if bucket_name != env.gcs_bronze_bucket:
+        raise RuntimeError(f"GCS bucket {bucket_name} != bronze bucket {env.gcs_bronze_bucket}")
+
+    if not object_name.startswith("bronze/"):
+        raise RuntimeError(f"GCS object is outside bronze prefix: {object_name}")
+
+    path_tenant_id = _extract_kv(object_name, "tenant_id")
+    if path_tenant_id != env.tenant_id:
+        raise RuntimeError(f"GCS tenant_id {path_tenant_id or '-'} != job tenant_id {env.tenant_id}")
+
+    path_ingestion_id = _extract_ingestion_id(object_name)
+    if path_ingestion_id != env.ingestion_id:
+        raise RuntimeError(f"GCS ingestion_id {path_ingestion_id or '-'} != job ingestion_id {env.ingestion_id}")
+
+
 def main() -> int:
     env = load_env()
 
@@ -54,15 +87,16 @@ def main() -> int:
     gcs = storage.Client()
     meta = MetadataStore(bq_client=bq, dataset_id=env.bq_meta_dataset)
 
+    bucket_name, object_name = _parse_gcs_uri(env.gcs_uri)
+    _validate_bronze_scope(env, bucket_name, object_name)
+    ext = _ext(object_name)
+
     meta.update_status(tenant_id=env.tenant_id, ingestion_id=env.ingestion_id, status="silver_running", timestamp_field="silver_started_at")
 
     silver_dataset = _dataset_id(env.dv_env, env.tenant_id)
     dataset_ref = bigquery.Dataset(f"{bq.project}.{silver_dataset}")
     dataset_ref.location = env.bq_location
     bq.create_dataset(dataset_ref, exists_ok=True)
-
-    bucket_name, object_name = _parse_gcs_uri(env.gcs_uri)
-    ext = _ext(object_name)
 
     table_id = _table_id(env.dataset)
     full_table = f"{bq.project}.{silver_dataset}.{table_id}"

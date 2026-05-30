@@ -28,6 +28,9 @@
 - Imports (ordem, aliases):
 
 ## Guardrails (o que NÃO fazer)
+- Multi-tenant é requisito obrigatório: `tenant_id` vem da autenticação/membership, nunca de input livre do cliente.
+- APIs, jobs e funções devem validar que paths, metadados e artefatos pertencem ao mesmo `tenant_id` antes de ler, copiar, transformar ou expor dados.
+- Usuário só pode acessar recursos do tenant onde possui membership e role compatível.
 - Evitar refactors grandes sem pedido explícito.
 - Não alterar API/contratos sem atualizar testes/docs.
 - Não adicionar dependências novas sem justificar.

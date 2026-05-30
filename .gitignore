@@ -15,6 +15,7 @@
 *.tfplan
 *.tfvars
 *.tfvars.json
+!infra/terraform/terraform.tfvars
 *.auto.tfvars
 *.auto.tfvars.json
 override.tf
