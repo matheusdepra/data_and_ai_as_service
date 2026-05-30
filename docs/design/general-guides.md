@@ -62,37 +62,38 @@ Avoid inspiration from:
 
 Use the Dativerso brand identity.
 
-Primary background:
+Primary theme:
 
-* Deep navy
-* Dark-first design
+* Light
+* Clean
+* Professional
 
 Suggested palette:
 
 Background:
 
-* #05082F
-* #0B103A
-* #121744
+* #FFFFFF
+* #FAFBFC
+* #F4F6F8
 
 Primary accents:
 
-* #13C6E9
-* #4E8EFF
-* #8E5DFF
+* #6E5BFF
+* #5F4CF0
+* #5EC9FF
 
 Text:
 
-* #FFFFFF
-* #B8C0E0
-* #7E88B5
+* #111827
+* #6B7280
+* #9CA3AF
 
 Status colors:
 
 * Success: #22C55E
 * Warning: #F59E0B
 * Error: #EF4444
-* Running: #4E8EFF
+* Info: #3B82F6
 
 Use gradients subtly.
 

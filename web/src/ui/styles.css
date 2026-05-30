@@ -1,43 +1,53 @@
 @import "tailwindcss";
 
 @theme {
-  --color-dv-primary: #6E5BFF;
-  --color-dv-secondary: #5EC9FF;
-  --color-dv-accent: #8B5CF6;
-  --color-dv-background: #FFFFFF;
-  --color-dv-surface: #F8F9FC;
-  --color-dv-border: #E8EBF2;
-  --color-dv-text: #101828;
-  --color-dv-muted: #667085;
-  --color-dv-success: #12B76A;
-  --color-dv-warning: #F79009;
-  --color-dv-error: #F04438;
+  --color-dv-primary: #6e5bff;
+  --color-dv-primary-hover: #5f4cf0;
+  --color-dv-primary-soft: #f3f1ff;
+  --color-dv-secondary: #5ec9ff;
+  --color-dv-secondary-soft: #eef9ff;
+  --color-dv-background: #ffffff;
+  --color-dv-surface: #fafbfc;
+  --color-dv-surface-secondary: #f4f6f8;
+  --color-dv-border: #e5e7eb;
+  --color-dv-text: #111827;
+  --color-dv-text-secondary: #6b7280;
+  --color-dv-text-muted: #9ca3af;
+  --color-dv-success: #22c55e;
+  --color-dv-success-bg: #f0fdf4;
+  --color-dv-warning: #f59e0b;
+  --color-dv-warning-bg: #fffbeb;
+  --color-dv-error: #ef4444;
+  --color-dv-error-bg: #fef2f2;
+  --color-dv-info: #3b82f6;
+  --color-dv-info-bg: #eff6ff;
   --font-sans: Inter, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --shadow-dv-card: 0 1px 3px rgba(0, 0, 0, 0.08);
+  --shadow-dv-elevated: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-dv-modal: 0 12px 32px rgba(0, 0, 0, 0.12);
 }
 
-
 :root {
-  --bg: #05082f;
-  --bg-2: #0b103a;
-  --panel: #0f1647;
-  --panel-strong: #141b52;
-  --panel-soft: #101741;
-  --text: #ffffff;
-  --muted: #b8c0e0;
-  --subtle: #7e88b5;
-  --line: rgba(184, 192, 224, 0.16);
-  --line-strong: rgba(184, 192, 224, 0.26);
-  --accent: #13c6e9;
-  --accent-2: #4e8eff;
-  --accent-3: #8e5dff;
+  --bg: #ffffff;
+  --bg-2: #fafbfc;
+  --panel: #ffffff;
+  --panel-strong: #f4f6f8;
+  --panel-soft: #fafbfc;
+  --text: #111827;
+  --muted: #6b7280;
+  --subtle: #9ca3af;
+  --line: #e5e7eb;
+  --line-strong: #d1d5db;
+  --accent: #6e5bff;
+  --accent-2: #5ec9ff;
+  --accent-3: #5f4cf0;
   --good: #22c55e;
   --warn: #f59e0b;
   --bad: #ef4444;
-  --shadow: 0 20px 60px rgba(0, 0, 0, 0.28);
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
   --font: Inter, "Avenir Next", "Segoe UI", sans-serif;
   --mono: "SFMono-Regular", "JetBrains Mono", Menlo, monospace;
 }
-
 * {
   box-sizing: border-box;
 }
@@ -52,7 +62,7 @@ body {
   margin: 0;
   font-family: var(--font);
   color: var(--text);
-  background: linear-gradient(180deg, var(--bg) 0%, #070b34 44%, #080c2d 100%);
+  background: var(--bg);
 }
 
 a {
@@ -72,7 +82,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid #6e5bff;
   outline-offset: 3px;
 }
 

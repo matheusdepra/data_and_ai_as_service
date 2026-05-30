@@ -11,8 +11,8 @@ const navItems = [
 
 export function AppSidebar() {
   return (
-    <aside className="fixed inset-y-0 left-0 z-30 flex w-[280px] flex-col border-r border-[#E8EBF2] bg-white">
-      <div className="flex h-16 items-center border-b border-[#E8EBF2] px-5">
+    <aside className="fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-[#E5E7EB] bg-white">
+      <div className="flex h-16 items-center border-b border-[#E5E7EB] px-5">
         <img src="/brand/main-logo-trimmed.png" alt="Dativerso" className="h-10 w-auto max-w-[172px] object-contain" />
       </div>
 
@@ -25,8 +25,8 @@ export function AppSidebar() {
               to={item.href}
               className={({ isActive }) =>
                 [
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition",
-                  isActive ? "bg-[#F3F1FF] text-[#6E5BFF]" : "text-[#667085] hover:bg-[#F8F9FC] hover:text-[#101828]",
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition duration-200",
+                  isActive ? "bg-[#F3F1FF] text-[#6E5BFF]" : "text-[#6B7280] hover:bg-[#FAFBFC] hover:text-[#111827]",
                 ].join(" ")
               }
             >
@@ -37,14 +37,14 @@ export function AppSidebar() {
         })}
       </nav>
 
-      <div className="border-t border-[#E8EBF2] p-4">
-        <button className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-[#F8F9FC]" type="button">
+      <div className="border-t border-[#E5E7EB] p-4">
+        <button className="flex w-full items-center gap-3 rounded-lg p-2 text-left transition hover:bg-[#FAFBFC]" type="button">
           <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3F1FF] text-sm font-semibold text-[#6E5BFF]">
             DU
           </span>
           <span className="min-w-0">
-            <span className="block truncate text-sm font-medium text-[#101828]">Dativerso User</span>
-            <span className="block truncate text-xs text-[#667085]">Acme · Dev</span>
+            <span className="block truncate text-sm font-medium text-[#111827]">Dativerso User</span>
+            <span className="block truncate text-xs text-[#6B7280]">Acme · Dev</span>
           </span>
         </button>
       </div>
