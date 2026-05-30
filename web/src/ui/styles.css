@@ -1,3 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dv-primary: #6E5BFF;
+  --color-dv-secondary: #5EC9FF;
+  --color-dv-accent: #8B5CF6;
+  --color-dv-background: #FFFFFF;
+  --color-dv-surface: #F8F9FC;
+  --color-dv-border: #E8EBF2;
+  --color-dv-text: #101828;
+  --color-dv-muted: #667085;
+  --color-dv-success: #12B76A;
+  --color-dv-warning: #F79009;
+  --color-dv-error: #F04438;
+  --font-sans: Inter, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+}
+
+
 :root {
   --bg: #05082f;
   --bg-2: #0b103a;
