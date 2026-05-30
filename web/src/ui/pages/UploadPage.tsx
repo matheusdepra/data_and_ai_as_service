@@ -44,7 +44,7 @@ export function UploadPage() {
         }
       />
 
-      <div className="grid">
+      <div className="legacyGrid">
         <div className="panel">
           <div className="panelHeader">
             <h2>Nova ingestao</h2>

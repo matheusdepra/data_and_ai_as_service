@@ -330,7 +330,7 @@ kbd {
   font-weight: 700;
 }
 
-.grid {
+.legacyGrid {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.55fr);
   gap: 16px;
@@ -905,7 +905,7 @@ kbd {
 }
 
 @media (max-width: 880px) {
-  .grid,
+  .legacyGrid,
   .contentGrid,
   .authLayout,
   .authLayoutWide,

@@ -62,7 +62,7 @@ export function TrackPage() {
         description="Cole o protocolo de uma ingestao para ver o que aconteceu, o que esta acontecendo e o que fazer depois."
       />
 
-      <div className="grid">
+      <div className="legacyGrid">
         <div className="panel">
           <div className="panelHeader">
             <h2>Status da ingestao</h2>

@@ -12,12 +12,8 @@ const navItems = [
 export function AppSidebar() {
   return (
     <aside className="fixed inset-y-0 left-0 z-30 flex w-[280px] flex-col border-r border-[#E8EBF2] bg-white">
-      <div className="flex h-16 items-center gap-3 border-b border-[#E8EBF2] px-5">
-        <img src="/logo.jpeg" alt="Dativerso" className="h-9 w-9 rounded-lg object-cover" />
-        <div>
-          <div className="text-sm font-semibold text-[#101828]">Dativerso</div>
-          <div className="text-xs text-[#667085]">AI Data Workspace</div>
-        </div>
+      <div className="flex h-16 items-center border-b border-[#E8EBF2] px-5">
+        <img src="/brand/main-logo-trimmed.png" alt="Dativerso" className="h-10 w-auto max-w-[172px] object-contain" />
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4" aria-label="Primary navigation">

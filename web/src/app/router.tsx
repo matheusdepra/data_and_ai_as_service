@@ -14,7 +14,7 @@ function AuthFrame({ children }: { children: React.ReactNode }) {
     <div className="authShell">
       <header className="authTopbar">
         <div className="brand brandRow">
-          <img src="/logo.jpeg" alt="Dativerso" className="brandLogo" />
+          <img src="/brand/main-logo-trimmed.png" alt="Dativerso" className="brandLogo" />
           <div>
             <h1>Dativerso</h1>
             <p>Dados organizados para sua empresa acompanhar, preparar e consumir com seguranca.</p>
