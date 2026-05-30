@@ -21,11 +21,18 @@
 ## Estrutura do projeto (preencher)
 - `docs/`: documentacao da plataforma e padroes. Comece por `docs/README.md`.
 - `ai/`: prompts/artefatos de IA e perfis de agentes (ver `ai/AGENTS.md`).
+- `ai/tasks/`: planos/checklists de trabalho dos agentes. Sempre que uma tarefa exigir plano, acompanhamento ou etapas, crie/atualize um Markdown aqui e marque os checks conforme avanca.
 
 ## Convenções (preencher)
 - Estilo/formatter:
 - Nomes (arquivos, funções, variáveis):
 - Imports (ordem, aliases):
+
+## Planos e tarefas de agentes
+- Planos operacionais e checklists devem ser versionados em `ai/tasks/`, nao em `tasks/` na raiz.
+- Use subpastas por area quando fizer sentido, por exemplo `ai/tasks/frontend/`.
+- Ao executar uma tarefa com checklist, atualize o arquivo conforme o progresso real: marque `[x]` apenas para itens efetivamente concluidos.
+- Se o usuario pedir plano antes de implementacao, registre o plano em `ai/tasks/` antes de seguir para codigo.
 
 ## Guardrails (o que NÃO fazer)
 - Multi-tenant é requisito obrigatório: `tenant_id` vem da autenticação/membership, nunca de input livre do cliente.

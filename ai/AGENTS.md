@@ -8,6 +8,7 @@
 - Preferir artefatos versionados (templates, exemplos) em vez de texto solto em chats.
 
 ## Organização sugerida (opcional)
+- `ai/tasks/`: planos/checklists de trabalho dos agentes. Sempre criar ou atualizar tarefas e planos aqui, usando subpastas por area quando fizer sentido. Marcar checks conforme o progresso real.
 - `ai/prompts/`: prompts reutilizáveis (com placeholders).
 - `ai/specs/`: specs e “playbooks” (checklists).
 - `ai/evals/`: casos de teste e critérios de aceitação.
