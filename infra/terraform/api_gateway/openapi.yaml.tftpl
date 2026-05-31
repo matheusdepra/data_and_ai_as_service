@@ -245,6 +245,19 @@ paths:
       x-google-backend:
         address: "${ingestion_api_url}"
         path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: getIngestion
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
 
   /v1/ingestions/{ingestion_id}/overview:
     options:
@@ -275,6 +288,77 @@ paths:
         address: "${ingestion_api_url}"
         path_translation: APPEND_PATH_TO_ADDRESS
 
+  /v1/ingestions/{ingestion_id}/overview/semantic:
+    options:
+      security: []
+      operationId: getIngestionOverviewSemanticOptions
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: getIngestionOverviewSemantic
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    patch:
+      operationId: patchIngestionOverviewSemantic
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/ingestions/{ingestion_id}/overview/semantic/preview:
+    options:
+      security: []
+      operationId: previewIngestionOverviewSemanticOptions
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    post:
+      operationId: previewIngestionOverviewSemantic
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
   /v1/ingestions/{ingestion_id}/overview/run:
     options:
       security: []
@@ -292,19 +376,6 @@ paths:
         path_translation: APPEND_PATH_TO_ADDRESS
     post:
       operationId: runIngestionOverview
-      parameters:
-        - name: ingestion_id
-          in: path
-          required: true
-          type: string
-      responses:
-        "200":
-          description: ok
-      x-google-backend:
-        address: "${ingestion_api_url}"
-        path_translation: APPEND_PATH_TO_ADDRESS
-    get:
-      operationId: getIngestion
       parameters:
         - name: ingestion_id
           in: path

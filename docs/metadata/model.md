@@ -104,10 +104,68 @@ Subdocumentos derivados:
   - `business_description`
   - `terms`
   - `relationships`
+- `tenants/{tenant_id}/ingestions/{ingestion_id}/derived/overview_semantic`
+  - refinamentos semanticos editaveis por humano/agente
+- `tenants/{tenant_id}/ingestions/{ingestion_id}/derived/overview_semantic_history/{event_id}`
+  - historico append-only das mudancas semanticas
 
 Uso operacional:
 - `technical_summary` e escrito pelo job `silverize` depois da materializacao final da Silver.
 - `derived/overview` e escrito pelo job `overviewify`.
+- `derived/overview_semantic` deve ser escrito apenas por endpoint autorizado de refinamento semantico.
 - a timeline de `events` continua sendo usada para troubleshooting com `stage = overview` nas transicoes da analise.
+
+## Camada semantica do overview
+
+O `derived/overview` representa a camada **gerada automaticamente**.
+
+O `derived/overview_semantic` representa a camada **editavel** de interpretacao de negocio.
+
+Regra:
+
+```text
+campos tecnicos derivados nao sao sobrescritos;
+campos semanticos permitidos podem receber overlay refinado.
+```
+
+Campos candidatos em `overview_semantic.semantic`:
+
+- `dataset_header.classification`
+- `dataset_header.tags`
+- `ai_understanding.summary`
+- `business_description.business_area`
+- `business_description.domain`
+- `business_description.data_type`
+- `business_description.typical_usage`
+- `terms`
+
+Campos de controle recomendados:
+
+- `base_version`
+- `updated_at`
+- `updated_by`
+- `reason`
+
+## Historico de refinamentos
+
+Colecao recomendada:
+
+- `tenants/{tenant_id}/ingestions/{ingestion_id}/derived/overview_semantic_history/{event_id}`
+
+Payload sugerido:
+
+- `created_at`
+- `created_by`
+- `reason`
+- `patch`
+- `base_version`
+- `resolved_after_patch`
+
+Objetivo:
+
+- auditoria
+- troubleshooting
+- reversao manual futura
+- rastreabilidade de mudancas feitas por usuario ou agente
 
 Regra multi-tenant: APIs e jobs sempre resolvem `tenant_id` pela autenticação, metadados BigQuery ou path GCS validado; o cliente nunca envia `tenant_id` livre.

@@ -116,6 +116,134 @@ Regras:
 - quando o payload ainda nao estiver pronto, a API retorna apenas o status resumido.
 - o payload e derivado do BigQuery Silver + heuristicas deterministicas no backend; o frontend nao infere esses dados por conta propria.
 
+Nota de evolucao:
+- o payload de `overview` representa a camada **derivada** automaticamente.
+- refinamentos semanticos feitos por usuario/agente devem ser armazenados separadamente e aplicados por overlay controlado.
+
+### `GET /v1/ingestions/{ingestion_id}/overview/semantic`
+Retorna os refinamentos semanticos persistidos para o overview da ingestao.
+
+Objetivo:
+- permitir que UI/agentes leiam correcoes de negocio feitas por humano ou IA
+- manter separacao entre fatos tecnicos derivados e interpretacao semantica editavel
+
+Response (200):
+```json
+{
+  "tenant_id": "acme",
+  "ingestion_id": "uuid",
+  "base_version": "2026-05-31T20:18:00Z",
+  "updated_at": "2026-05-31T20:25:10Z",
+  "updated_by": {
+    "sub": "user-123",
+    "email": "ana@acme.com",
+    "type": "user"
+  },
+  "semantic": {
+    "dataset_header": {
+      "classification": "Commercial / Marketing",
+      "tags": ["Marketing", "Campaigns", "Leads"]
+    },
+    "ai_understanding": {
+      "summary": "This dataset supports marketing campaign analysis and audience segmentation."
+    },
+    "business_description": {
+      "business_area": "Marketing",
+      "domain": "Campaign Performance",
+      "data_type": "Master Data",
+      "typical_usage": ["Campaign analytics", "Audience segmentation", "Performance reporting"]
+    },
+    "terms": ["Campaign", "Audience", "Lead Source"]
+  }
+}
+```
+
+### `PATCH /v1/ingestions/{ingestion_id}/overview/semantic`
+Aplica refinamentos semanticos parciais no overview para a ingestao do tenant autenticado.
+
+Objetivo:
+- aceitar correcoes do usuario como:
+  - "isso nao e CRM, e Marketing"
+  - "refine a descricao"
+  - "ajuste os termos de negocio"
+- persistir apenas campos permitidos da camada semantica
+
+Headers:
+- `Authorization: Bearer <token>`
+- `x-api-key: <api_key>` quando via gateway
+- `If-Match: <base_version>` opcional, recomendado
+
+Body exemplo:
+```json
+{
+  "patch": {
+    "dataset_header": {
+      "classification": "Commercial / Marketing",
+      "tags": ["Marketing", "Campaigns", "Leads"]
+    },
+    "business_description": {
+      "business_area": "Marketing",
+      "domain": "Campaign Performance",
+      "typical_usage": ["Campaign analytics", "Audience segmentation", "Performance reporting"]
+    },
+    "terms": ["Campaign", "Audience", "Lead Source"]
+  },
+  "reason": "User clarified that the dataset belongs to marketing instead of CRM."
+}
+```
+
+Regras:
+- permitido apenas para o mesmo `tenant_id` do token.
+- usuario precisa ter role compativel para edicao.
+- o backend deve rejeitar campos fora do allowlist semantico.
+- o patch e parcial; objetos fazem merge por chave.
+- listas como `tags`, `terms` e `typical_usage` substituem o array inteiro.
+
+Campos permitidos:
+- `dataset_header.classification`
+- `dataset_header.tags`
+- `ai_understanding.summary`
+- `business_description.business_area`
+- `business_description.domain`
+- `business_description.data_type`
+- `business_description.typical_usage`
+- `terms`
+
+Campos proibidos:
+- `summary.rows`
+- `summary.columns`
+- `summary.size_bytes`
+- `summary.language`
+- `summary.created_date`
+- `quality.*`
+- `schema.*`
+- `preview_rows`
+- `technical_summary.*`
+- `relationships[*].confidence`
+- qualquer outro campo tecnico derivado do dataset
+
+Erro esperado para patch invalido:
+```json
+{
+  "error": "invalid_patch",
+  "message": "Patch contains fields outside the allowed semantic scope.",
+  "invalid_paths": ["quality.overall_score", "schema.columns[0].inferred_type"]
+}
+```
+
+### `POST /v1/ingestions/{ingestion_id}/overview/semantic/preview`
+Opcional na implementacao inicial, mas recomendado.
+
+Objetivo:
+- validar e aplicar overlay do patch sem persistir
+- permitir preview de mudancas antes da confirmacao do usuario
+
+Uso esperado:
+- agente gera proposta
+- UI mostra diff/preview
+- usuario confirma
+- frontend chama `PATCH /overview/semantic`
+
 ### `POST /v1/ingestions/{ingestion_id}/overview/run`
 Dispara ou re-dispara a analise de overview para uma ingestao `silver_ready`.
 
