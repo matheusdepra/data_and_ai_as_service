@@ -15,6 +15,7 @@ from google.cloud import storage
 from . import auth, naming
 from .identity_client import resolve_me
 from .metadata import IngestionRecord, MetadataStore
+from .overview_semantic import merge_semantic, normalize_patch
 from .read_model import FirestoreReadModel
 from .settings import load_settings
 
@@ -27,8 +28,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-API-Key"],
+    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "X-API-Key", "If-Match"],
 )
 
 gcs = storage.Client()
@@ -45,11 +46,22 @@ def healthz():
 
 
 def _resolve_tenant_id(request: Request) -> str:
+    return _resolve_actor(request)["tenant_id"]
+
+
+def _resolve_actor(request: Request) -> dict[str, str]:
     if settings.identity_api_base_url:
         me = resolve_me(settings, request)
         tenant_id_raw = str(me.get("tenant_id") or "")
         if not tenant_id_raw.strip():
             raise HTTPException(status_code=403, detail="tenant not resolved")
+        return {
+            "tenant_id": naming.normalize_tenant_id(tenant_id_raw),
+            "sub": str(me.get("sub") or ""),
+            "email": str(me.get("email") or ""),
+            "role": str(me.get("role") or ""),
+            "type": "user",
+        }
     else:
         gateway_claims = auth.get_gateway_claims(request)
         if gateway_claims is not None:
@@ -58,7 +70,20 @@ def _resolve_tenant_id(request: Request) -> str:
             token = auth.get_bearer_token(request)
             claims = auth.get_claims(settings, token)
         tenant_id_raw = auth.get_tenant_id(settings, claims)
-    return naming.normalize_tenant_id(tenant_id_raw)
+        return {
+            "tenant_id": naming.normalize_tenant_id(tenant_id_raw),
+            "sub": str(claims.get("sub") or ""),
+            "email": str(claims.get("email") or ""),
+            "role": str(claims.get("role") or claims.get("user_role") or ""),
+            "type": "user",
+        }
+
+
+def _require_overview_semantic_editor(request: Request) -> dict[str, str]:
+    actor = _resolve_actor(request)
+    if actor["role"] not in {"admin", "editor"}:
+        raise HTTPException(status_code=403, detail="overview semantic edit requires admin or editor role")
+    return actor
 
 
 def _log_event(**payload: object) -> None:
@@ -226,6 +251,141 @@ def get_ingestion_overview(request: Request, ingestion_id: str):
     return overview
 
 
+@app.get("/v1/ingestions/{ingestion_id}/overview/semantic")
+def get_ingestion_overview_semantic(request: Request, ingestion_id: str):
+    tenant_id = _resolve_tenant_id(request)
+    overview = read_model.get_overview(tenant_id=tenant_id, ingestion_id=ingestion_id)
+    if overview is None:
+        return JSONResponse(status_code=404, content={"error": "not_found"})
+
+    semantic = read_model.get_overview_semantic(tenant_id=tenant_id, ingestion_id=ingestion_id) or {
+        "tenant_id": tenant_id,
+        "ingestion_id": ingestion_id,
+    }
+    semantic.setdefault("base_version", _semantic_base_version(overview))
+    semantic.setdefault("updated_at", None)
+    semantic.setdefault("updated_by", None)
+    semantic.setdefault("reason", None)
+    semantic.setdefault("semantic", {})
+    return semantic
+
+
+@app.post("/v1/ingestions/{ingestion_id}/overview/semantic/preview")
+async def preview_ingestion_overview_semantic(request: Request, ingestion_id: str):
+    actor = _require_overview_semantic_editor(request)
+    tenant_id = actor["tenant_id"]
+    overview = read_model.get_overview(tenant_id=tenant_id, ingestion_id=ingestion_id)
+    if overview is None:
+        return JSONResponse(status_code=404, content={"error": "not_found"})
+
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+    patch_raw = payload.get("patch")
+    normalized_patch, invalid_paths = normalize_patch(patch_raw)
+    if normalized_patch is None or invalid_paths:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "invalid_patch",
+                "message": "Patch contains fields outside the allowed semantic scope.",
+                "invalid_paths": invalid_paths,
+            },
+        )
+
+    current = read_model.get_overview_semantic(tenant_id=tenant_id, ingestion_id=ingestion_id) or {}
+    current_semantic = current.get("semantic") if isinstance(current.get("semantic"), dict) else {}
+    preview_semantic = merge_semantic(current_semantic, normalized_patch)
+    return {
+        "tenant_id": tenant_id,
+        "ingestion_id": ingestion_id,
+        "base_version": _semantic_base_version(overview),
+        "semantic": preview_semantic,
+        "patch": normalized_patch,
+        "persisted": False,
+    }
+
+
+@app.patch("/v1/ingestions/{ingestion_id}/overview/semantic")
+async def patch_ingestion_overview_semantic(request: Request, ingestion_id: str):
+    actor = _require_overview_semantic_editor(request)
+    tenant_id = actor["tenant_id"]
+    overview = read_model.get_overview(tenant_id=tenant_id, ingestion_id=ingestion_id)
+    if overview is None:
+        return JSONResponse(status_code=404, content={"error": "not_found"})
+
+    payload = await request.json()
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="invalid JSON body")
+
+    patch_raw = payload.get("patch")
+    reason_raw = payload.get("reason")
+    if not isinstance(reason_raw, str) or not reason_raw.strip():
+        raise HTTPException(status_code=400, detail="reason is required")
+
+    normalized_patch, invalid_paths = normalize_patch(patch_raw)
+    if normalized_patch is None or invalid_paths:
+        return JSONResponse(
+            status_code=400,
+            content={
+                "error": "invalid_patch",
+                "message": "Patch contains fields outside the allowed semantic scope.",
+                "invalid_paths": invalid_paths,
+            },
+        )
+
+    current = read_model.get_overview_semantic(tenant_id=tenant_id, ingestion_id=ingestion_id) or {}
+    current_base_version = str(current.get("base_version") or _semantic_base_version(overview) or "")
+    if_match = (request.headers.get("if-match") or request.headers.get("If-Match") or "").strip()
+    if if_match and current_base_version and if_match != current_base_version:
+        return JSONResponse(
+            status_code=409,
+            content={
+                "error": "version_conflict",
+                "message": "Semantic overview changed since the client loaded it.",
+                "current_version": current_base_version,
+            },
+        )
+
+    current_semantic = current.get("semantic") if isinstance(current.get("semantic"), dict) else {}
+    next_semantic = merge_semantic(current_semantic, normalized_patch)
+    base_version = _semantic_base_version(overview)
+    updated_by = {
+        "sub": actor["sub"],
+        "email": actor["email"],
+        "type": actor["type"],
+    }
+    reason = reason_raw.strip()
+    read_model.store_overview_semantic(
+        tenant_id=tenant_id,
+        ingestion_id=ingestion_id,
+        base_version=base_version,
+        reason=reason,
+        semantic=next_semantic,
+        patch=normalized_patch,
+        updated_by=updated_by,
+    )
+    _log_event(
+        tenant_id=tenant_id,
+        ingestion_id=ingestion_id,
+        stage="overview_semantic",
+        status="updated",
+        actor_sub=actor["sub"],
+        actor_email=actor["email"],
+        reason=reason,
+        request_id=request.headers.get("x-cloud-trace-context") or request.headers.get("x-request-id") or "",
+    )
+    return {
+        "ok": True,
+        "tenant_id": tenant_id,
+        "ingestion_id": ingestion_id,
+        "base_version": base_version,
+        "updated_by": updated_by,
+        "reason": reason,
+        "semantic": next_semantic,
+    }
+
+
 @app.post("/v1/ingestions/{ingestion_id}/overview/run")
 def run_ingestion_overview(request: Request, ingestion_id: str):
     tenant_id = _resolve_tenant_id(request)
@@ -299,3 +459,16 @@ def run_ingestion_overview(request: Request, ingestion_id: str):
         request_id=request.headers.get("x-cloud-trace-context") or request.headers.get("x-request-id") or "",
     )
     return {"ok": True, "ingestion_id": ingestion_id, "status": "pending", "triggered": True, "operation_name": op_name}
+
+
+def _semantic_base_version(overview: dict[str, object]) -> str | None:
+    overview_payload = overview.get("overview") if isinstance(overview, dict) else None
+    if isinstance(overview_payload, dict) and overview_payload.get("generated_at"):
+        return str(overview_payload["generated_at"])
+    ready_at = overview.get("ready_at") if isinstance(overview, dict) else None
+    if ready_at:
+        return str(ready_at)
+    started_at = overview.get("started_at") if isinstance(overview, dict) else None
+    if started_at:
+        return str(started_at)
+    return None

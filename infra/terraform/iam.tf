@@ -59,9 +59,10 @@ resource "google_storage_bucket_iam_member" "bronze_reader_bronze" {
   member = "serviceAccount:${google_service_account.bronze_job.email}"
 }
 
-resource "google_storage_bucket_iam_member" "bronze_reader_silver" {
+resource "google_storage_bucket_iam_member" "bronze_object_user_silver" {
   bucket = google_storage_bucket.bronze.name
-  role   = "roles/storage.objectViewer"
+  # silverize reads bronze artifacts and updates the per-ingestion manifest.json
+  role   = "roles/storage.objectUser"
   member = "serviceAccount:${google_service_account.silver_job.email}"
 }
 

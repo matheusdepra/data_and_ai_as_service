@@ -32,6 +32,9 @@ class FirestoreReadModel:
     def _overview_ref(self, tenant_id: str, ingestion_id: str):
         return self._ingestion_ref(tenant_id, ingestion_id).collection("derived").document("overview")
 
+    def _overview_semantic_ref(self, tenant_id: str, ingestion_id: str):
+        return self._ingestion_ref(tenant_id, ingestion_id).collection("derived").document("overview_semantic")
+
     def upsert_collection_stub(self, *, tenant_id: str, slug: str, created_by: str | None = None) -> None:
         ref = self._tenant_ref(tenant_id).collection("collections").document(slug)
         snap = ref.get()
@@ -199,6 +202,75 @@ class FirestoreReadModel:
             "error": ingestion.get("overview_error"),
             "overview": overview,
         }
+
+    def get_overview_semantic(self, *, tenant_id: str, ingestion_id: str) -> dict[str, Any] | None:
+        ingestion = self.get_ingestion(tenant_id=tenant_id, ingestion_id=ingestion_id)
+        if ingestion is None:
+            return None
+        semantic_snap = self._overview_semantic_ref(tenant_id, ingestion_id).get()
+        semantic = _serialize_doc(semantic_snap.to_dict() or {}) if semantic_snap.exists else {}
+        return {
+            "tenant_id": tenant_id,
+            "ingestion_id": ingestion_id,
+            **semantic,
+        }
+
+    def store_overview_semantic(
+        self,
+        *,
+        tenant_id: str,
+        ingestion_id: str,
+        base_version: str | None,
+        reason: str,
+        semantic: dict[str, Any],
+        patch: dict[str, Any],
+        updated_by: dict[str, Any],
+    ) -> None:
+        ref = self._overview_semantic_ref(tenant_id, ingestion_id)
+        ingestion_ref = self._ingestion_ref(tenant_id, ingestion_id)
+        now = firestore.SERVER_TIMESTAMP
+        history_ref = ref.collection("history").document(f"{datetime.now(timezone.utc).isoformat()}-{uuid4()}")
+        event_ref = ingestion_ref.collection("events").document(f"{datetime.now(timezone.utc).isoformat()}-{uuid4()}")
+
+        payload = {
+            "base_version": base_version,
+            "updated_at": now,
+            "updated_by": updated_by,
+            "reason": reason,
+            "semantic": semantic,
+        }
+        batch = self._db.batch()
+        batch.set(ref, payload, merge=True)
+        batch.set(
+            history_ref,
+            {
+                "created_at": now,
+                "created_by": updated_by,
+                "reason": reason,
+                "patch": patch,
+                "base_version": base_version,
+                "resolved_after_patch": semantic,
+            },
+        )
+        batch.set(
+            event_ref,
+            {
+                "stage": "overview_semantic",
+                "status": "updated",
+                "message": "Refinamento semântico do overview persistido.",
+                "reason": reason,
+                "patch": patch,
+                "created_at": now,
+            },
+        )
+        batch.set(
+            ingestion_ref,
+            {
+                "updated_at": now,
+            },
+            merge=True,
+        )
+        batch.commit()
 
     def get_ingestion(self, *, tenant_id: str, ingestion_id: str) -> dict[str, Any] | None:
         ref = self._ingestion_ref(tenant_id, ingestion_id)
