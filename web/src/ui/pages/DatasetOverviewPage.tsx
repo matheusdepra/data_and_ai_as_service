@@ -138,6 +138,12 @@ export function DatasetOverviewPage() {
             <Badge variant={overviewStatus === "ready" ? "success" : overviewStatus === "failed" ? "warning" : "info"}>
               {overviewStatus === "ready" ? "Overview ready" : overviewStatus === "failed" ? "Needs retry" : "Preparing overview"}
             </Badge>
+            <Button variant="secondary" asChild>
+              <Link to={`/datasets/${normalizedIngestionId}/copilot`}>Open Copilot</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/workspaces/customer-analytics">Open Workspace</Link>
+            </Button>
             <Button variant="outline" asChild>
               <Link to="/ingestions">Back to Ingestions</Link>
             </Button>

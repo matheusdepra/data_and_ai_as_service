@@ -23,6 +23,10 @@ export function AppLayout() {
       ? [{ label: "Home", href: "/home" }, { label: "Processing" }]
       : location.pathname.startsWith("/datasets/") && location.pathname.endsWith("/overview")
         ? [{ label: "Home", href: "/home" }, { label: "Ingestions", href: "/ingestions" }, { label: "Dataset Overview" }]
+      : location.pathname.startsWith("/datasets/") && location.pathname.endsWith("/copilot")
+        ? [{ label: "Home", href: "/home" }, { label: "Datasets", href: "/datasets" }, { label: "Dataset Copilot" }]
+      : location.pathname.startsWith("/workspaces/")
+        ? [{ label: "Home", href: "/home" }, { label: "Workspaces", href: "/workspaces" }, { label: "Customer Analytics" }]
       : (breadcrumbsByPath[location.pathname] ?? [{ label: "Home", href: "/home" }]);
 
   return (
