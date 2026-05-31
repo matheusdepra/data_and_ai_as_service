@@ -30,6 +30,22 @@ resource "google_cloud_run_v2_service" "ai_assistant_api" {
         name  = "CHAT_GCP_LOCATION"
         value = var.region
       }
+      env {
+        name  = "CHAT_LLM_PROVIDER"
+        value = var.ai_assistant_llm_provider
+      }
+      env {
+        name  = "CHAT_VERTEX_MODEL_NAME"
+        value = var.ai_assistant_vertex_model_name
+      }
+      env {
+        name  = "CHAT_INGESTION_API_BASE_URL"
+        value = local.enable_ingestion_api ? google_cloud_run_v2_service.ingestion_api[0].uri : ""
+      }
+      env {
+        name  = "CHAT_CORS_ORIGINS"
+        value = jsonencode(compact([var.frontend_base_url]))
+      }
     }
   }
 }
@@ -186,6 +202,15 @@ resource "google_cloud_run_v2_service_iam_member" "ai_assistant_api_invokers" {
   location = var.region
   role     = "roles/run.invoker"
   member   = each.value
+}
+
+resource "google_cloud_run_v2_service_iam_member" "ingestion_api_invoker_ai_assistant_api" {
+  count = local.enable_ingestion_api && local.enable_ai_assistant_api ? 1 : 0
+
+  name     = google_cloud_run_v2_service.ingestion_api[0].name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ai_assistant_api.email}"
 }
 
 resource "google_cloud_run_v2_service_iam_member" "identity_invoker_ingestion_api" {

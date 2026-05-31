@@ -88,6 +88,22 @@ variable "ai_assistant_api_invokers" {
   default     = []
 }
 
+variable "ai_assistant_llm_provider" {
+  type        = string
+  description = "LLM provider for ai-assistant-api. Expected values: mock or vertex_ai."
+  default     = "vertex_ai"
+  validation {
+    condition     = contains(["mock", "vertex_ai"], var.ai_assistant_llm_provider)
+    error_message = "ai_assistant_llm_provider must be one of: mock, vertex_ai."
+  }
+}
+
+variable "ai_assistant_vertex_model_name" {
+  type        = string
+  description = "Vertex AI Gemini model id used by ai-assistant-api."
+  default     = "gemini-2.5-flash"
+}
+
 variable "grant_pubsub_token_creator" {
   type        = bool
   description = "If true, grants roles/iam.serviceAccountTokenCreator to the Pub/Sub service agent (only required for older projects)."

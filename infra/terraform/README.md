@@ -67,6 +67,12 @@ Para o `identity-api`, configure tambem:
 - `firebase_project_id`
 - `frontend_base_url`
 
+Para o `ai-assistant-api`, os defaults do Terraform agora assumem:
+- `ai_assistant_llm_provider = "vertex_ai"`
+- `ai_assistant_vertex_model_name = "gemini-2.5-flash"`
+
+Esses valores podem ser sobrescritos em `terraform.tfvars`.
+
 ## API Gateway (entrypoint unico)
 Opcionalmente, voce pode expor um entrypoint unico via **GCP API Gateway** (roteamento por path).
 Habilite:

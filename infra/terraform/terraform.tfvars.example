@@ -21,6 +21,8 @@ auth_audience = ""
 # In dev, you can expose the API publicly (recommend restricting in prod).
 ingestion_api_invokers = ["allUsers"]
 ai_assistant_api_invokers = []
+ai_assistant_llm_provider = "vertex_ai"
+ai_assistant_vertex_model_name = "gemini-2.5-flash"
 
 # Container images (set after you push to Artifact Registry).
 ai_assistant_api_image = ""
