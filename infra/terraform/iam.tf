@@ -3,6 +3,11 @@ resource "google_service_account" "ingestion_api" {
   display_name = "Dativerso ingestion-api (${var.env})"
 }
 
+resource "google_service_account" "ai_assistant_api" {
+  account_id   = "sa-ai-assistant-api-${var.env}"
+  display_name = "Dativerso ai-assistant-api (${var.env})"
+}
+
 resource "google_service_account" "ingestion_router" {
   account_id   = "sa-ingestion-router-${var.env}"
   display_name = "Dativerso ingestion-router (${var.env})"
@@ -90,6 +95,12 @@ resource "google_project_iam_member" "bq_jobuser_api" {
   project = var.project_id
   role    = "roles/bigquery.jobUser"
   member  = "serviceAccount:${google_service_account.ingestion_api.email}"
+}
+
+resource "google_project_iam_member" "aiplatform_user_ai_assistant_api" {
+  project = var.project_id
+  role    = "roles/aiplatform.user"
+  member  = "serviceAccount:${google_service_account.ai_assistant_api.email}"
 }
 
 resource "google_project_iam_member" "bq_jobuser_router" {

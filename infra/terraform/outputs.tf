@@ -13,6 +13,7 @@ output "meta_dataset" {
 
 output "service_accounts" {
   value = {
+    ai_assistant_api = google_service_account.ai_assistant_api.email
     ingestion_api    = google_service_account.ingestion_api.email
     ingestion_router = google_service_account.ingestion_router.email
     bronze_job       = google_service_account.bronze_job.email
@@ -23,6 +24,7 @@ output "service_accounts" {
 
 output "cloud_run" {
   value = {
+    ai_assistant_api = local.enable_ai_assistant_api ? google_cloud_run_v2_service.ai_assistant_api[0].name : null
     ingestion_api    = local.enable_ingestion_api ? google_cloud_run_v2_service.ingestion_api[0].name : null
     ingestion_router = local.enable_ingestion_router ? google_cloud_run_v2_service.ingestion_router[0].name : null
     identity_api     = local.enable_identity_api ? try(google_cloud_run_v2_service.identity_api[0].name, null) : null

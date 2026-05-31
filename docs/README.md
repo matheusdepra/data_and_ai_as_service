@@ -7,7 +7,7 @@
 ## API
 - [api/ingestion-api.md](api/ingestion-api.md)
 - [api/identity-api.md](api/identity-api.md)
-- [../backend/README.md](../backend/README.md) - backend Data & AI Chat (FastAPI)
+- [../services/ai_assistant_api/README.md](../services/ai_assistant_api/README.md) - AI Assistant API (FastAPI)
 
 ## Data Lake
 - [data-lake/medallion.md](data-lake/medallion.md)
@@ -60,6 +60,7 @@
 
 ## Implementacao (scaffold)
 - `services/ingestion_api`: API REST (Cloud Run)
+- `services/ai_assistant_api`: API conversacional/agêntica (Cloud Run)
 - `services/ingestion_router`: roteador de eventos (Eventarc -> Cloud Run)
 - `jobs/bronzeify`: job de bronze/quarantine (Cloud Run Job)
 - `jobs/silverize`: job de silver (Cloud Run Job)

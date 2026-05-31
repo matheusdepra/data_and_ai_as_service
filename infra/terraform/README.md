@@ -55,6 +55,7 @@ Se precisar encurtar/padronizar, use `resource_suffix`.
 ## Cloud Run (deploy de imagens)
 Os recursos de Cloud Run aceitam imagens prontas via variaveis (ex.: Artifact Registry).
 Comece provisionando storage/bq/iam e depois configure as imagens:
+- `ai_assistant_api_image`
 - `ingestion_api_image`
 - `ingestion_router_image`
 - `bronzeify_image`
@@ -80,10 +81,12 @@ Sem Docker local (Cloud Build):
 
 Dica: para buildar apenas um servico:
 - `./scripts/build_push.sh 0.1.0 --only identity-api`
+- `./scripts/build_push.sh 0.1.0 --only ai-assistant-api`
 - `./scripts/build_push.sh --only identity-api --update-tfvars`
 
 Sem informar tag, o script consulta o Artifact Registry por imagem, ignora tags nao semanticas como `dev` e usa a proxima versao numerica de cada servico.
 Exemplo:
+- `ai-assistant-api`: ultima tag `0.1.2` -> nova tag `0.1.3`
 - `identity-api`: ultima tag `1.1` -> nova tag `1.2`
 - `ingestion-api`: ultima tag `0.1.6` -> nova tag `0.1.7`
 
@@ -100,3 +103,14 @@ Quando `overviewify_image` estiver preenchida:
 
 Permissoes aplicadas:
 - `ingestion-api` e `silverize` recebem permissao de `run.invoker` no job `overviewify`
+
+## AI Assistant API
+O backend conversacional/agêntico roda como servico separado:
+- `ai-assistant-api`
+
+Quando `ai_assistant_api_image` estiver preenchida:
+- o Terraform cria o service `ai-assistant-api`
+- o build script aceita `--only ai-assistant-api`
+- a exposicao publica e opcional via `ai_assistant_api_invokers`
+
+Nesta etapa, ele nao entra automaticamente no API Gateway publico. A integracao com `ingestion-api` deve acontecer por contrato de backend e auth consistente.

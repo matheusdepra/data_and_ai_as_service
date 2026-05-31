@@ -145,3 +145,14 @@ Logs por request devem incluir:
 - `ingestion_id`
 - `request_id` (trace)
 - `overview_status` quando a operacao tocar a etapa de overview
+
+## Contrato com `ai_assistant_api`
+- `ingestion-api` continua sendo a fonte de verdade para contexto confiavel do dataset.
+- para a tela `Dataset Overview`, o backend conversacional deve buscar contexto a partir de:
+  - `GET /v1/ingestions/{ingestion_id}`
+  - `GET /v1/ingestions/{ingestion_id}/overview`
+  - `GET /v1/ingestions/{ingestion_id}/overview/semantic`
+- o frontend nao deve montar nem enviar por conta propria fatos tecnicos do dataset como fonte de verdade para a IA.
+- refinamentos semanticos aprovados pela conversa devem ser persistidos por:
+  - `POST /v1/ingestions/{ingestion_id}/overview/semantic/preview`
+  - `PATCH /v1/ingestions/{ingestion_id}/overview/semantic`

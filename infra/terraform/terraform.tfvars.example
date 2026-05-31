@@ -20,8 +20,10 @@ auth_audience = ""
 
 # In dev, you can expose the API publicly (recommend restricting in prod).
 ingestion_api_invokers = ["allUsers"]
+ai_assistant_api_invokers = []
 
 # Container images (set after you push to Artifact Registry).
+ai_assistant_api_image = ""
 ingestion_api_image    = ""
 ingestion_router_image = ""
 bronzeify_image        = ""

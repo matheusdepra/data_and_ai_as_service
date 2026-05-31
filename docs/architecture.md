@@ -59,8 +59,8 @@ Para suportar JSON arbitrario sem "adivinhar" um modelo final cedo demais:
 - Bronze normaliza para Parquet com uma coluna `payload` (JSON/string) + colunas `_dv_*` de lineage.
 - Silver (BigQuery) materializa inicialmente a mesma estrutura (payload + lineage); mapeamentos/flattening ficam para fase de enriquecimento (assistido por IA/UI).
 
-## Backend Data & AI Chat (P1/P2)
-- Serviço backend-only em `backend/`, preparado para Cloud Run e futuro frontend React.
+## AI Assistant API (P1/P2)
+- Serviço backend-only em `services/ai_assistant_api/`, preparado para Cloud Run e futuro frontend React.
 - Arquitetura limpa com camadas API, application, domain, infrastructure e core/config.
 - Rotas FastAPI chamam apenas use cases; BigQuery, Vertex AI/Gemini, prompts, memória e contexto ficam atrás de portas/interfaces.
 - O `tenant_id` deve continuar vindo de autenticação/membership, nunca do corpo da requisição. A implementação inicial usa provider mock apenas para desenvolvimento local.

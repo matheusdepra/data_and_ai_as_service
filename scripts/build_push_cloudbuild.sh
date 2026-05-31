@@ -151,6 +151,7 @@ build_and_push() {
 
 ctx_for() {
   case "$1" in
+    ai-assistant-api) echo "services/ai_assistant_api" ;;
     ingestion-api) echo "services/ingestion_api" ;;
     ingestion-router) echo "services/ingestion_router" ;;
     bronzeify) echo "jobs/bronzeify" ;;
@@ -163,6 +164,7 @@ ctx_for() {
 
 tfvars_key_for() {
   case "$1" in
+    ai-assistant-api) echo "ai_assistant_api_image" ;;
     ingestion-api) echo "ingestion_api_image" ;;
     ingestion-router) echo "ingestion_router_image" ;;
     bronzeify) echo "bronzeify_image" ;;
@@ -207,7 +209,7 @@ update_tfvars_image() {
 
 SERVICES=()
 if [[ -z "${ONLY}" ]]; then
-  SERVICES=("ingestion-api" "ingestion-router" "bronzeify" "silverize" "overviewify" "identity-api")
+  SERVICES=("ingestion-api" "ingestion-router" "bronzeify" "silverize" "overviewify" "identity-api" "ai-assistant-api")
 else
   IFS=',' read -r -a SERVICES <<<"${ONLY}"
 fi
@@ -220,7 +222,7 @@ for svc in "${SERVICES[@]}"; do
   ctx="$(ctx_for "$svc")"
   if [[ -z "${ctx}" ]]; then
     echo "Unknown service in --only: ${svc}" >&2
-    echo "Valid: ingestion-api, ingestion-router, bronzeify, silverize, overviewify, identity-api" >&2
+    echo "Valid: ingestion-api, ingestion-router, bronzeify, silverize, overviewify, identity-api, ai-assistant-api" >&2
     exit 2
   fi
   svc_tag="${TAG:-$(resolve_next_semver_tag "${AR_PATH}/${svc}")}"

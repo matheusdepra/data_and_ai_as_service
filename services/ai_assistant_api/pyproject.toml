@@ -1,7 +1,7 @@
 [project]
-name = "dativerso-data-ai-chat-backend"
+name = "dativerso-ai-assistant-api"
 version = "0.1.0"
-description = "Clean-architecture FastAPI backend for Data & AI chat interactions."
+description = "Clean-architecture FastAPI backend for AI assistant and chat interactions."
 requires-python = ">=3.11"
 dependencies = [
   "fastapi>=0.115.0",

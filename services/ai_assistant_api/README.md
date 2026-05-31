@@ -1,4 +1,4 @@
-# Data & AI Chat Backend
+# AI Assistant API
 
 Backend-only FastAPI service for future React clients that need chat interactions with an LLM, reusable prompt templates, explicit context injection, BigQuery-ready data access, and future tool/agent expansion.
 
@@ -83,7 +83,7 @@ TODO before production deployment:
 ## Local development
 
 ```bash
-cd backend
+cd services/ai_assistant_api
 python -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
@@ -103,16 +103,16 @@ curl -s -X POST http://localhost:8080/api/v1/chat/messages \
 ## Tests
 
 ```bash
-cd backend
+cd services/ai_assistant_api
 pytest
 ```
 
 ## Cloud Run container
 
 ```bash
-cd backend
-docker build -t data-ai-chat-backend .
-docker run --rm -p 8080:8080 -e PORT=8080 data-ai-chat-backend
+cd services/ai_assistant_api
+docker build -t ai-assistant-api .
+docker run --rm -p 8080:8080 -e PORT=8080 ai-assistant-api
 ```
 
 The Dockerfile uses `python:3.12-slim`, installs the Python package from `pyproject.toml`, and starts Uvicorn on the Cloud Run `PORT`.

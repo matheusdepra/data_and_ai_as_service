@@ -1,10 +1,37 @@
 locals {
+  enable_ai_assistant_api = var.ai_assistant_api_image != ""
   enable_ingestion_api    = var.ingestion_api_image != ""
   enable_ingestion_router = var.ingestion_router_image != ""
   enable_bronzeify_job    = var.bronzeify_image != ""
   enable_silverize_job    = var.silverize_image != ""
   enable_overviewify_job  = var.overviewify_image != ""
   enable_identity_api     = var.identity_api_image != ""
+}
+
+resource "google_cloud_run_v2_service" "ai_assistant_api" {
+  count      = local.enable_ai_assistant_api ? 1 : 0
+  name       = "${local.name_prefix}-ai-assistant-api"
+  location   = var.region
+  depends_on = [google_project_service.required]
+
+  template {
+    service_account = google_service_account.ai_assistant_api.email
+    containers {
+      image = var.ai_assistant_api_image
+      env {
+        name  = "CHAT_ENVIRONMENT"
+        value = var.env
+      }
+      env {
+        name  = "CHAT_GCP_PROJECT_ID"
+        value = var.project_id
+      }
+      env {
+        name  = "CHAT_GCP_LOCATION"
+        value = var.region
+      }
+    }
+  }
 }
 
 resource "google_cloud_run_v2_service" "ingestion_api" {
@@ -147,6 +174,15 @@ resource "google_cloud_run_v2_service_iam_member" "ingestion_api_invokers" {
   for_each = local.enable_ingestion_api ? toset(var.ingestion_api_invokers) : toset([])
 
   name     = google_cloud_run_v2_service.ingestion_api[0].name
+  location = var.region
+  role     = "roles/run.invoker"
+  member   = each.value
+}
+
+resource "google_cloud_run_v2_service_iam_member" "ai_assistant_api_invokers" {
+  for_each = local.enable_ai_assistant_api ? toset(var.ai_assistant_api_invokers) : toset([])
+
+  name     = google_cloud_run_v2_service.ai_assistant_api[0].name
   location = var.region
   role     = "roles/run.invoker"
   member   = each.value

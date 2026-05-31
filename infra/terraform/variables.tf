@@ -82,6 +82,12 @@ variable "ingestion_api_invokers" {
   default     = []
 }
 
+variable "ai_assistant_api_invokers" {
+  type        = list(string)
+  description = "IAM members allowed to invoke ai-assistant-api. Empty = no additional invokers."
+  default     = []
+}
+
 variable "grant_pubsub_token_creator" {
   type        = bool
   description = "If true, grants roles/iam.serviceAccountTokenCreator to the Pub/Sub service agent (only required for older projects)."
@@ -122,6 +128,12 @@ variable "overviewify_image" {
 variable "identity_api_image" {
   type        = string
   description = "Container image for identity-api (Cloud Run service). Empty disables resource creation."
+  default     = ""
+}
+
+variable "ai_assistant_api_image" {
+  type        = string
+  description = "Container image for ai-assistant-api (Cloud Run service). Empty disables resource creation."
   default     = ""
 }
 
