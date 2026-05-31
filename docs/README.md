@@ -7,6 +7,7 @@
 ## API
 - [api/ingestion-api.md](api/ingestion-api.md)
 - [api/identity-api.md](api/identity-api.md)
+- [../backend/README.md](../backend/README.md) - backend Data & AI Chat (FastAPI)
 
 ## Data Lake
 - [data-lake/medallion.md](data-lake/medallion.md)
