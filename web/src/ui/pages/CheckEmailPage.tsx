@@ -1,20 +1,11 @@
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowRight, MailCheck, RotateCcw } from "lucide-react";
+import { Link, useSearchParams } from "react-router-dom";
 import { sendSignInLinkToEmail } from "firebase/auth";
 import { continueUrl, getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
 import { getPendingEmail, setPendingEmail } from "../lib/storage";
 
-function emailClientLink(email: string): string {
-  const normalized = email.toLowerCase();
-  if (normalized.endsWith("@gmail.com")) return "https://mail.google.com";
-  if (normalized.endsWith("@outlook.com") || normalized.endsWith("@hotmail.com") || normalized.endsWith("@live.com")) {
-    return "https://outlook.live.com/mail";
-  }
-  return "mailto:";
-}
-
 export function CheckEmailPage() {
-  const navigate = useNavigate();
   const [search] = useSearchParams();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -43,61 +34,56 @@ export function CheckEmailPage() {
       });
       setPendingEmail(email);
       setSentAgain(true);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel reenviar o link.");
+    } catch {
+      setError("Nao foi possivel reenviar o link agora. Tente novamente em alguns instantes.");
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="authLayout authLayoutSingle">
-      <section className="authPanel authHero">
-        <div className="sectionEyebrow">Verifique sua caixa de entrada</div>
-        <h2 className="pageTitle">Enviamos um link de acesso.</h2>
+    <section className="authCard authCardFlow">
+      <div className="authCardHeader">
+        <div className="authStatusMark">
+          <MailCheck size={18} />
+        </div>
+        <div className="sectionEyebrow">Check your inbox</div>
+        <h2 className="pageTitle">We sent a secure sign-in link.</h2>
         <p className="pageLead">
           {email ? (
             <>
-              O proximo passo esta no e-mail <strong>{email}</strong>. Abra a mensagem e clique no link para concluir sua entrada.
+              The next step is in <strong>{email}</strong>. Open the email and click the link to complete sign in.
             </>
           ) : (
-            <>O proximo passo esta no seu e-mail. Abra a mensagem e clique no link para concluir sua entrada.</>
+            <>Open your email and click the link to complete sign in.</>
           )}
         </p>
+      </div>
 
-        <div className="supportGrid">
-          <div className="supportCard">
-            <strong>Se nao encontrou o e-mail</strong>
-            <p>Revise spam, promocionais e filtros corporativos. O link pode levar alguns minutos.</p>
-          </div>
-          <div className="supportCard">
-            <strong>Se abriu em outro dispositivo</strong>
-            <p>Voce pode concluir o login assim mesmo, mas talvez o app peça o e-mail novamente por seguranca.</p>
-          </div>
-        </div>
+      <div className="authHintList">
+        <p>Check spam or filtered folders. Delivery can take a few minutes.</p>
+        <p>If opened on another device, confirm the same email used to request the link.</p>
+      </div>
 
-        <div className="btnRow">
-          <a className="btn btnPrimary btnLarge" href={emailClientLink(email)} target="_blank" rel="noreferrer">
-            Abrir meu e-mail
-          </a>
-          <button className="btn" onClick={resend} disabled={busy}>
-            {busy ? "Reenviando..." : "Reenviar link"}
-          </button>
-          <Link className="btn btnGhost" to="/login">
-            Usar outro e-mail
-          </Link>
-        </div>
+      <div className="btnRow authTertiaryActions">
+        <button className="btn authSecondaryBlockButton" onClick={resend} disabled={busy}>
+          <RotateCcw size={16} />
+          <span>{busy ? "Resending..." : "Resend link"}</span>
+        </button>
+        <Link className="btn authSecondaryBlockButton" to="/login">
+          Use another email
+        </Link>
+      </div>
 
-        {sentAgain ? <div className="inlineNotice">Link reenviado. Use sempre a mensagem mais recente.</div> : null}
-        {error ? <div className="inlineNotice inlineNoticeError">{error}</div> : null}
+      {sentAgain ? <div className="inlineNotice">A new sign-in link was sent. Use the latest email.</div> : null}
+      {error ? <div className="inlineNotice inlineNoticeError">{error}</div> : null}
 
-        <div className="helperRow">
-          <span className="pill pillSoft">Passo 2 de 3</span>
-          <Link to="/login/complete" className="textLink">
-            Ja cliquei no link
-          </Link>
-        </div>
-      </section>
-    </div>
+      <div className="helperRow authCardHelper authCardHelperSplit">
+        <Link to="/login/complete" className="textLink authInlineAction">
+          <span>I already clicked the link</span>
+          <ArrowRight size={14} />
+        </Link>
+      </div>
+    </section>
   );
 }

@@ -3,15 +3,24 @@ import { Link } from "react-router-dom";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
 import { getMe, type MeResponse } from "../lib/api";
 import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
-import { clearJwt, getJwt, setJwt } from "../lib/storage";
+import { clearAuthSession, getAuthSession, setAuthSession } from "../lib/storage";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
 export function SessionPage() {
   const [state, setState] = useState<LoadState>("idle");
   const [authUser, setAuthUser] = useState<User | null>(null);
-  const [token, setTokenState] = useState(() => getJwt());
-  const [me, setMe] = useState<MeResponse | null>(null);
+  const [token, setTokenState] = useState(() => getAuthSession()?.idToken ?? "");
+  const [me, setMe] = useState<MeResponse | null>(() => {
+    const session = getAuthSession();
+    if (!session) return null;
+    return {
+      sub: session.sub,
+      email: session.email,
+      tenant_id: session.tenant_id,
+      role: session.role,
+    };
+  });
   const [error, setError] = useState("");
   const configured = isFirebaseConfigured();
 
@@ -28,9 +37,16 @@ export function SessionPage() {
       setError("");
       try {
         const nextToken = await user.getIdToken(true);
-        setJwt(nextToken);
-        setTokenState(nextToken);
         const meResponse = await getMe({ jwt: nextToken });
+        setAuthSession({
+          idToken: nextToken,
+          sub: meResponse.sub,
+          email: meResponse.email,
+          tenant_id: meResponse.tenant_id,
+          role: meResponse.role,
+          issued_at: new Date().toISOString(),
+        });
+        setTokenState(nextToken);
         setMe(meResponse);
         setState("ready");
       } catch (err) {
@@ -50,7 +66,7 @@ export function SessionPage() {
     if (!configured) return;
     const auth = getFirebaseAuth();
     await signOut(auth);
-    clearJwt();
+    clearAuthSession();
     setTokenState("");
     setMe(null);
   }

@@ -47,8 +47,15 @@
 - [product/requirements-full.md](product/requirements-full.md)
 
 ## Frontend
+- [frontend/frontend-guidelines.md](frontend/frontend-guidelines.md)
 - [frontend/wireflow-datalake-mvp.md](frontend/wireflow-datalake-mvp.md)
 - [frontend/auth-login-flow.md](frontend/auth-login-flow.md)
+
+## Design e UX
+- [design/general-guides.md](design/general-guides.md)
+- [design/ui-ux-specs.md](design/ui-ux-specs.md)
+- [design/97-design-tokens.md](design/97-design-tokens.md)
+- [design/98-design-ux.md](design/98-design-ux.md)
 
 ## Implementacao (scaffold)
 - `services/ingestion_api`: API REST (Cloud Run)

@@ -11,10 +11,10 @@ function LoadingState() {
   return (
     <div className="space-y-4" aria-label="Loading Home">
       <div className="h-36 animate-pulse rounded-lg bg-slate-100" />
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="h-44 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-44 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-44 animate-pulse rounded-lg bg-slate-100" />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <div className="h-24 animate-pulse rounded-lg bg-slate-100" />
+        <div className="h-24 animate-pulse rounded-lg bg-slate-100" />
+        <div className="h-24 animate-pulse rounded-lg bg-slate-100" />
       </div>
     </div>
   );
@@ -59,59 +59,82 @@ function HomePageContent() {
         {data && isHomeEmpty(data) ? <HomeEmptyState /> : null}
         {data && !isHomeEmpty(data) ? (
           <>
-            <section className="rounded-lg border border-slate-200 bg-white p-8 shadow-sm">
+            <section>
               <div className="max-w-3xl">
-                <h1 className="text-4xl font-semibold leading-tight text-slate-950">
-                  What would you like to build today?
-                </h1>
-                <p className="mt-3 text-base leading-7 text-slate-600">
-                  Build datasets, analytics assets and dashboards with AI assistance.
-                </p>
+                <h1 className="text-4xl font-semibold leading-tight text-[#101828]">Welcome back, Matheus.</h1>
+                <p className="mt-3 text-base leading-7 text-[#667085]">What would you like to do today?</p>
               </div>
-              <div className="mt-8 grid gap-4 md:grid-cols-3">
+              <div className="mt-7 grid gap-4 lg:grid-cols-3">
                 {data.actions.map((action) => (
                   <ActionCard key={action.kind} action={action} />
                 ))}
               </div>
             </section>
 
-            <section className="grid gap-4">
-              <div className="flex items-center justify-between gap-4">
-                <h2 className="text-xl font-semibold text-slate-950">Continue Working</h2>
-              </div>
-              <div className="grid gap-4 lg:grid-cols-3">
-                {data.continueWorking.map((workspace) => (
-                  <article key={workspace.id} className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-                    <h3 className="text-base font-semibold text-slate-950">{workspace.name}</h3>
-                    <p className="mt-2 text-sm leading-6 text-slate-600">{workspace.description}</p>
-                    <p className="mt-4 text-xs font-medium text-slate-500">{workspace.lastUpdated}</p>
+            <section className="grid gap-6 lg:grid-cols-2">
+              <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-base font-semibold text-[#101828]">Recent Projects</h2>
+                  <a className="text-sm font-medium text-[#6E5BFF] hover:text-[#5F4CF0]" href="/workspaces">
+                    View all
+                  </a>
+                </div>
+                <div className="mt-4 divide-y divide-[#EAECF0]">
+                  {data.continueWorking.map((workspace) => (
                     <a
+                      key={workspace.id}
                       href={workspace.href}
-                      className="mt-5 inline-flex min-h-10 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-cyan-700 transition hover:border-cyan-300"
+                      className="group flex items-center justify-between gap-4 py-4"
                     >
-                      Open Workspace
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#F3F1FF] text-sm font-semibold text-[#6E5BFF]">
+                          {workspace.name
+                            .split(" ")
+                            .slice(0, 2)
+                            .map((part) => part[0])
+                            .join("")}
+                        </span>
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-[#101828]">{workspace.name}</p>
+                          <p className="mt-1 truncate text-sm text-[#667085]">{workspace.description}</p>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-4">
+                        <span className="hidden text-xs font-medium text-[#98A2B3] sm:inline">{workspace.lastUpdated}</span>
+                        <span className="text-[#98A2B3] transition group-hover:text-[#667085]">…</span>
+                      </div>
                     </a>
-                  </article>
-                ))}
-              </div>
-            </section>
-
-            <section className="grid gap-6 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-              <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
-                <h2 className="text-xl font-semibold text-slate-950">Recent Activity</h2>
-                <div className="mt-6">
-                  <ActivityTimeline items={data.recentActivity} />
+                  ))}
                 </div>
               </div>
 
-              <div className="grid gap-4">
-                <h2 className="text-xl font-semibold text-slate-950">Suggested Next Steps</h2>
+              <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
+                <div className="flex items-center justify-between gap-4">
+                  <h2 className="text-base font-semibold text-[#101828]">Recent Activity</h2>
+                  <a className="text-sm font-medium text-[#6E5BFF] hover:text-[#5F4CF0]" href="/track">
+                    View all
+                  </a>
+                </div>
+                <div className="mt-4">
+                  <ActivityTimeline items={data.recentActivity} />
+                </div>
+              </div>
+            </section>
+
+            <section className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <h2 className="text-base font-semibold text-[#101828]">AI Suggestions</h2>
+                <a className="text-sm font-medium text-[#6E5BFF] hover:text-[#5F4CF0]" href="/home">
+                  View all
+                </a>
+              </div>
+              <div className="mt-4 grid gap-4 lg:grid-cols-2">
                 {suggestions.length > 0 ? (
-                  suggestions.map((suggestion) => (
+                  suggestions.slice(0, 2).map((suggestion) => (
                     <SuggestionCard key={suggestion.id} suggestion={suggestion} onAction={handleSuggestionAction} />
                   ))
                 ) : (
-                  <div className="rounded-lg border border-dashed border-slate-300 bg-white p-5 text-sm text-slate-600">
+                  <div className="rounded-lg border border-dashed border-[#D0D5DD] bg-[#FAFBFC] p-5 text-sm text-[#667085]">
                     No suggestions pending review.
                   </div>
                 )}

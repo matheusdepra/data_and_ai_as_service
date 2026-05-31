@@ -16,12 +16,38 @@ Decisao atual:
 
 ## Checklist
 
+## Verificacao 2026-05-30
+
+Status: implementacao base compila, mas a Home ainda esta distante da referencia visual `02-home reference.png`.
+
+Validado:
+- `npm run build` em `/web` conclui com sucesso.
+- Referencia visual local revisada.
+- Docs obrigatorios consultados: `docs/README.md`, `docs/architecture.md`, `docs/project/status-2026-05-27.md`, `docs/decisions/README.md`, `docs/frontend/frontend-guidelines.md`, `docs/design/ui-ux-specs.md`, `docs/design/home/02-home-screen.md`.
+
+Bloqueio parcial:
+- Validacao visual no browser nao foi concluida: servidor Vite subiu em `http://127.0.0.1:5173/`, mas o navegador in-app nao estava disponivel nesta sessao e nao ha Playwright/Puppeteer/Chromium instalado localmente.
+
+Principais gaps frente a referencia atual:
+- [x] Ajustar `PageShell` e `AppSidebar` para sidebar real de `280px`.
+- [x] Trocar hero em card por header aberto com saudacao (`Welcome back, Matheus.`) e subtitulo (`What would you like to do today?`).
+- [x] Reposicionar action cards como cards horizontais compactos (icone + texto + seta).
+- [x] Renomear `Continue Working` para `Recent Projects` e exibir como lista em painel unico.
+- [x] Refazer `Recent Activity` para painel pareado com projetos, timeline com icones e timestamp alinhado a direita.
+- [x] Refazer `AI Suggestions` com cards e CTA primaria roxa.
+- [x] Ajustar topnav: busca compacta + atalho `⌘ K` + sino com indicador + avatar com iniciais.
+- [x] Ajustar sidebar footer para tenant selector + usuario.
+- [ ] Revisar paleta/tokens usados no codigo: ainda existem muitos hex diretos em vez de tokens `dv-*`.
+- [ ] Reduzir CSS legado em `web/src/ui/styles.css`.
+- [x] Remover `web/src/ui/styles 2.css` (arquivo nao era importado).
+- [ ] Validar responsividade desktop `1440x900` e mobile/tablet depois dos ajustes visuais.
+
 ### 1. Preparacao e leitura
 
 - [x] Confirmar direcao visual principal como light theme.
 - [x] Confirmar que login atual fica preservado para testes.
 - [x] Registrar tarefas em `ai/tasks/frontend/homepage.md`.
-- [ ] Revisar imagem de referencia da Home no navegador/visualizador local.
+- [x] Revisar imagem de referencia da Home no navegador/visualizador local.
 - [x] Mapear arquivos atuais do `/web` impactados pela mudanca.
 
 ### 2. Fundacao tecnica
@@ -154,6 +180,8 @@ Decisao atual:
   - [x] focus states visiveis
 - [x] Remover emojis e icones decorativos sem funcao.
 - [ ] Evitar custom CSS fora do necessario.
+  - [ ] Reduzir CSS legado em `web/src/ui/styles.css`.
+  - [x] Remover ou arquivar `web/src/ui/styles 2.css` se nao for usado.
 
 ### 9. Validacao
 
@@ -174,4 +202,3 @@ Decisao atual:
 - [x] AI suggestions.
 - [x] User context / tenant / environment para sidebar.
 - [x] Global search.
-

@@ -11,11 +11,16 @@ const breadcrumbsByPath: Record<string, Array<{ label: string; href?: string }>>
   "/datasets": [{ label: "Home", href: "/home" }, { label: "Datasets" }],
   "/catalog": [{ label: "Home", href: "/home" }, { label: "Catalog" }],
   "/sources": [{ label: "Home", href: "/home" }, { label: "Sources" }],
+  "/admin/users": [{ label: "Home", href: "/home" }, { label: "Administration" }, { label: "Users" }],
+  "/admin/settings": [{ label: "Home", href: "/home" }, { label: "Administration" }, { label: "Settings" }],
 };
 
 export function AppLayout() {
   const location = useLocation();
-  const breadcrumbs = breadcrumbsByPath[location.pathname] ?? [{ label: "Home", href: "/home" }];
+  const breadcrumbs =
+    location.pathname.startsWith("/processing/")
+      ? [{ label: "Home", href: "/home" }, { label: "Processing" }]
+      : (breadcrumbsByPath[location.pathname] ?? [{ label: "Home", href: "/home" }]);
 
   return (
     <PageShell breadcrumbs={breadcrumbs}>

@@ -38,7 +38,7 @@ export function TokenBox() {
           >
             Salvar
           </button>
-          {status === "saved" ? <span className="pill">Salvo</span> : <span className="pill">localStorage</span>}
+          {status === "saved" ? <span className="pill">Salvo</span> : <span className="pill">sessionStorage</span>}
         </div>
       </div>
     </div>

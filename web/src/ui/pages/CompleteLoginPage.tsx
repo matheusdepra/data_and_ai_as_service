@@ -1,14 +1,16 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeft, Link2, RotateCcw } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { isSignInWithEmailLink, signInWithEmailLink } from "firebase/auth";
+import { getMe } from "../lib/api";
 import { getFirebaseAuth, isFirebaseConfigured } from "../lib/firebase";
-import { clearPendingEmail, getPendingEmail, setJwt } from "../lib/storage";
+import { clearPendingEmail, getPendingEmail, setAuthSession } from "../lib/storage";
 
 export function CompleteLoginPage() {
   const navigate = useNavigate();
   const configured = isFirebaseConfigured();
-  const [email, setEmail] = useState(() => getPendingEmail());
-  const [busy, setBusy] = useState(false);
+  const pendingEmail = getPendingEmail();
+  const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
   const [autoAttempted, setAutoAttempted] = useState(false);
 
@@ -17,8 +19,7 @@ export function CompleteLoginPage() {
     return isSignInWithEmailLink(getFirebaseAuth(), window.location.href);
   }, [configured]);
 
-  async function finishLogin(overrideEmail?: string) {
-    const emailValue = (overrideEmail ?? email).trim().toLowerCase();
+  async function finishLogin(emailValue: string) {
     setBusy(true);
     setError("");
     try {
@@ -28,18 +29,22 @@ export function CompleteLoginPage() {
       if (!isMagicLink) {
         throw new Error("Este link nao parece ser um link valido de login por e-mail.");
       }
-      if (!emailValue) {
-        throw new Error("Confirme o e-mail usado no inicio da sessao.");
-      }
-
       const auth = getFirebaseAuth();
       const result = await signInWithEmailLink(auth, emailValue, window.location.href);
       const idToken = await result.user.getIdToken(true);
-      setJwt(idToken);
+      const me = await getMe({ jwt: idToken });
+      setAuthSession({
+        idToken,
+        sub: me.sub,
+        email: me.email,
+        tenant_id: me.tenant_id,
+        role: me.role,
+        issued_at: new Date().toISOString(),
+      });
       clearPendingEmail();
-      navigate("/session", { replace: true });
+      navigate("/home", { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Nao foi possivel concluir o login.");
+      setError("Nao foi possivel concluir seu acesso agora. Tente novamente em alguns instantes.");
     } finally {
       setBusy(false);
       setAutoAttempted(true);
@@ -47,57 +52,60 @@ export function CompleteLoginPage() {
   }
 
   useEffect(() => {
-    if (!configured || !isMagicLink || autoAttempted || !email.trim()) return;
-    void finishLogin(email);
-  }, [autoAttempted, configured, email, isMagicLink]);
-
-  function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    void finishLogin();
-  }
+    if (autoAttempted) return;
+    if (!configured || !isMagicLink) {
+      setBusy(false);
+      setAutoAttempted(true);
+      return;
+    }
+    if (!pendingEmail.trim()) {
+      setBusy(false);
+      setError("We could not complete sign-in automatically on this device. Request a new link.");
+      setAutoAttempted(true);
+      return;
+    }
+    void finishLogin(pendingEmail.trim().toLowerCase());
+  }, [autoAttempted, configured, isMagicLink, pendingEmail]);
 
   return (
-    <div className="authLayout authLayoutSingle">
-      <section className="authPanel authHero">
-        <div className="sectionEyebrow">Concluir acesso</div>
-        <h2 className="pageTitle">Validando seu link seguro.</h2>
-        <p className="pageLead">
-          Se o link foi aberto no mesmo dispositivo, concluimos quase tudo automaticamente. Se nao, confirme abaixo o e-mail usado no inicio da sessao.
-        </p>
-
-        {!isMagicLink ? (
-          <div className="inlineNotice inlineNoticeError">
-            Este endereco nao contem um link de login valido. Volte para a tela de entrada e solicite um novo link.
-          </div>
-        ) : null}
-
-        <form onSubmit={onSubmit} className="authForm">
-          <div className="field fieldLarge">
-            <label>E-mail usado para receber o link</label>
-            <input
-              type="email"
-              placeholder="voce@empresa.com"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              autoComplete="email"
-            />
-          </div>
-
-          <div className="btnRow">
-            <button className="btn btnPrimary btnLarge" disabled={busy || !isMagicLink}>
-              {busy ? "Concluindo..." : "Concluir login"}
-            </button>
-            <Link className="btn btnGhost" to="/login">
-              Voltar ao inicio
-            </Link>
-          </div>
-        </form>
-
-        {error ? <div className="inlineNotice inlineNoticeError">{error}</div> : null}
-        <div className="helperRow">
-          <span className="pill pillSoft">Passo 3 de 3</span>
+    <section className="authCard authCardFlow">
+      <div className="authCardHeader">
+        <div className="authStatusMark">
+          <Link2 size={18} />
         </div>
-      </section>
-    </div>
+        <div className="sectionEyebrow">Complete access</div>
+        <h2 className="pageTitle">Finalizing your secure sign-in.</h2>
+        <p className="pageLead">
+          We are validating your magic link and preparing your workspace access.
+        </p>
+      </div>
+
+      {!isMagicLink ? (
+        <div className="inlineNotice inlineNoticeError">
+          This URL does not contain a valid sign-in link. Request a new link to continue.
+        </div>
+      ) : null}
+
+      {busy ? <div className="inlineNotice">Validating your session...</div> : null}
+
+      {error ? <div className="inlineNotice inlineNoticeError">{error}</div> : null}
+
+      {!busy ? (
+        <div className="btnRow authStackedActions">
+          <Link className="btn authSecondaryBlockButton" to="/login">
+            <RotateCcw size={16} />
+            <span>Request new link</span>
+          </Link>
+          <Link className="btn authSecondaryBlockButton" to="/home">
+            <ArrowLeft size={16} />
+            <span>Back to home</span>
+          </Link>
+        </div>
+      ) : null}
+
+      <div className="helperRow authCardHelper">
+        <span className="pill pillSoft">Step 3 of 3</span>
+      </div>
+    </section>
   );
 }
