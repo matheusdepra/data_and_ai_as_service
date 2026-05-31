@@ -158,6 +158,11 @@ export function ProcessingPage() {
               <Copy className="h-4 w-4" />
               {copied ? "Copied" : "Copy ID"}
             </Button>
+            {status === "silver_ready" ? (
+              <Link to={`/datasets/${encodeURIComponent(normalizedIngestionId)}/overview`}>
+                <Button>Open Overview</Button>
+              </Link>
+            ) : null}
           </div>
         }
       />
@@ -253,6 +258,7 @@ export function ProcessingPage() {
               <InsightLine label="File size" value={data?.ingestion.size_bytes ? `${(data.ingestion.size_bytes / 1024 / 1024).toFixed(2)} MB` : "-"} />
               <InsightLine label="File type" value={fileType} />
               <InsightLine label="Status" value={status} />
+              <InsightLine label="Overview" value={data?.ingestion.overview_status ? String(data.ingestion.overview_status) : "Waiting for silver"} />
             </CardContent>
           </Card>
 
@@ -302,6 +308,14 @@ export function ProcessingPage() {
                 <>
                   <p className="text-sm font-semibold text-[#111827]">{datasetName}</p>
                   <p className="text-sm text-[#6B7280]">Clean, structured and business-ready dataset for commercial operations.</p>
+                  {status === "silver_ready" ? (
+                    <Link to={`/datasets/${encodeURIComponent(normalizedIngestionId)}/overview`}>
+                      <Button className="w-full gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Open dataset overview
+                      </Button>
+                    </Link>
+                  ) : null}
                 </>
               )}
             </CardContent>

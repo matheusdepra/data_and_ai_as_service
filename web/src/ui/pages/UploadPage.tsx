@@ -153,7 +153,7 @@ export function UploadPage() {
         title={stageTitle}
         description={stageDescription}
         actions={
-          <Link to={out ? `/processing/${encodeURIComponent(out.ingestion_id)}` : "/track"}>
+          <Link to={out ? `/processing/${encodeURIComponent(out.ingestion_id)}` : "/ingestions"}>
             <Button variant="outline">Track Protocol</Button>
           </Link>
         }
@@ -370,7 +370,7 @@ export function UploadPage() {
 
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <Button variant="outline">Save Metadata</Button>
-                    <Link to={out ? `/processing/${encodeURIComponent(out.ingestion_id)}` : "/track"}>
+                    <Link to={out ? `/processing/${encodeURIComponent(out.ingestion_id)}` : "/ingestions"}>
                       <Button>Continue Processing</Button>
                     </Link>
                   </div>

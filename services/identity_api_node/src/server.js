@@ -60,6 +60,36 @@ function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
 }
 
+function slugify(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80) || "default";
+}
+
+function tsToIso(value) {
+  if (!value) return null;
+  return value?.toDate ? value.toDate().toISOString() : String(value);
+}
+
+function collectionResponse(doc) {
+  const d = doc.data() || {};
+  return {
+    slug: String(d.slug || doc.id),
+    display_name: String(d.display_name || d.slug || doc.id),
+    description: String(d.description || ""),
+    created_at: tsToIso(d.created_at),
+    updated_at: tsToIso(d.updated_at),
+    last_ingestion_at: tsToIso(d.last_ingestion_at),
+    ingestions_count: Number(d.ingestions_count || 0),
+    created_by: String(d.created_by || ""),
+  };
+}
+
 async function requireAuth(req, res, next) {
   const userinfo = decodeGatewayUserinfo(
     req.get("X-Apigateway-Api-Userinfo") || req.get("x-apigateway-api-userinfo")
@@ -185,6 +215,51 @@ app.get("/v1/me", requireAuth, requireCtx, (req, res) => {
     tenant_id: req.ctx.tenant_id,
     role: req.ctx.role,
   });
+});
+
+const CollectionCreateSchema = z.object({
+  slug: z.string().min(1).max(80).optional(),
+  display_name: z.string().min(1).max(160),
+  description: z.string().max(1000).optional().default(""),
+});
+
+app.get("/v1/collections", requireAuth, requireCtx, async (req, res) => {
+  const snaps = await db
+    .collection("tenants")
+    .doc(req.ctx.tenant_id)
+    .collection("collections")
+    .orderBy("updated_at", "desc")
+    .limit(100)
+    .get();
+  res.json({ items: snaps.docs.map(collectionResponse) });
+});
+
+app.post("/v1/collections", requireAuth, requireCtx, async (req, res) => {
+  const parsed = CollectionCreateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(422).json({ detail: "invalid body" });
+
+  const slug = slugify(parsed.data.slug || parsed.data.display_name);
+  const ref = db.collection("tenants").doc(req.ctx.tenant_id).collection("collections").doc(slug);
+  const now = admin.firestore.Timestamp.now();
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const base = {
+      slug,
+      display_name: parsed.data.display_name,
+      description: parsed.data.description || "",
+      updated_at: now,
+      created_by: req.ctx.sub,
+    };
+    if (snap.exists) {
+      tx.set(ref, base, { merge: true });
+    } else {
+      tx.set(ref, { ...base, created_at: now, last_ingestion_at: null, ingestions_count: 0 });
+    }
+  });
+
+  const updated = await ref.get();
+  console.log(JSON.stringify({ tenant_id: req.ctx.tenant_id, collection_slug: slug, stage: "collections", status: "upserted", request_id: req.get("x-cloud-trace-context") || "" }));
+  res.status(201).json(collectionResponse(updated));
 });
 
 const InviteCreateSchema = z.object({

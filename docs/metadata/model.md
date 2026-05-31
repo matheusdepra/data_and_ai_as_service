@@ -66,3 +66,48 @@ Campos sugeridos:
 Se precisarem baixa latencia/alta taxa de updates para UI:
 - Migrar `ingestions` para Firestore (ou Spanner), mantendo BigQuery como historico/analytics.
 
+
+
+## Firestore read model (P0)
+
+Firestore complementa o BigQuery para leitura de baixa latência pela UI, sem substituir o ledger/histórico operacional em BigQuery.
+
+Estrutura:
+- `tenants/{tenant_id}/collections/{slug}`: catálogo mínimo de coleções com `slug`, `display_name`, `description`, `created_at`, `updated_at`, `last_ingestion_at`, `ingestions_count`, `created_by`.
+- `tenants/{tenant_id}/ingestions/{ingestion_id}`: status canônico para UI, arquivo, `collection_slug`, resumo de artefatos, timestamps, `last_error`, `technical_summary` e estado de overview.
+- `tenants/{tenant_id}/ingestions/{ingestion_id}/events/{event_id}`: timeline append-only de transições operacionais.
+
+Campos adicionais no documento da ingestao:
+- `overview_status`: `pending | running | ready | failed`
+- `overview_started_at`
+- `overview_ready_at`
+- `overview_error`
+- `technical_summary`
+
+Formato esperado de `technical_summary`:
+- `row_count`
+- `bq_table`
+- `schema_original`
+- `schema_normalized`
+- `column_mappings`
+- `cast_report`
+- `normalization_warnings`
+
+Subdocumentos derivados:
+- `tenants/{tenant_id}/ingestions/{ingestion_id}/derived/overview`
+  - `dataset_header`
+  - `ai_understanding`
+  - `summary`
+  - `schema`
+  - `preview_rows`
+  - `quality`
+  - `business_description`
+  - `terms`
+  - `relationships`
+
+Uso operacional:
+- `technical_summary` e escrito pelo job `silverize` depois da materializacao final da Silver.
+- `derived/overview` e escrito pelo job `overviewify`.
+- a timeline de `events` continua sendo usada para troubleshooting com `stage = overview` nas transicoes da analise.
+
+Regra multi-tenant: APIs e jobs sempre resolvem `tenant_id` pela autenticação, metadados BigQuery ou path GCS validado; o cliente nunca envia `tenant_id` livre.

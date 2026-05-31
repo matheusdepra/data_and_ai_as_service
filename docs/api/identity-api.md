@@ -123,3 +123,42 @@ Obrigatorio (prod):
 Opcional:
 - `FIRESTORE_PROJECT_ID` (se diferente do projeto corrente)
 - `AUTH_JWKS_URL` / `AUTH_ISSUER` / `AUTH_AUDIENCE` (override manual)
+
+## Coleções (P0)
+
+As coleções são o catálogo mínimo por tenant usado pela Home e pelo upload guiado. Elas ficam em `tenants/{tenant_id}/collections/{slug}` no Firestore.
+
+### GET /v1/collections
+Lista coleções do tenant autenticado. O cliente não informa `tenant_id`.
+
+Response:
+```json
+{
+  "items": [
+    {
+      "slug": "vendas",
+      "display_name": "Vendas",
+      "description": "Arquivos de vendas",
+      "created_at": "2026-05-31T00:00:00Z",
+      "updated_at": "2026-05-31T00:00:00Z",
+      "last_ingestion_at": null,
+      "ingestions_count": 0,
+      "created_by": "firebase-sub"
+    }
+  ]
+}
+```
+
+### POST /v1/collections
+Cria ou atualiza uma coleção existente pelo `slug` normalizado.
+
+Request:
+```json
+{
+  "slug": "vendas",
+  "display_name": "Vendas",
+  "description": "Arquivos de vendas"
+}
+```
+
+Response: o documento canônico da coleção.

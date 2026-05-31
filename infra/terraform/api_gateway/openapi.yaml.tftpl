@@ -64,6 +64,39 @@ paths:
         address: "${identity_api_url}"
         path_translation: APPEND_PATH_TO_ADDRESS
 
+
+  /v1/collections:
+    options:
+      security: []
+      operationId: collectionsOptions
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: listCollections
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    post:
+      operationId: createCollection
+      parameters:
+        - in: body
+          name: body
+          schema:
+            type: object
+      responses:
+        "201":
+          description: created
+      x-google-backend:
+        address: "${identity_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
   /v1/invites:
     options:
       security: []
@@ -164,6 +197,39 @@ paths:
         address: "${ingestion_api_url}"
         path_translation: APPEND_PATH_TO_ADDRESS
 
+
+  /v1/ingestions:
+    options:
+      security: []
+      operationId: listIngestionsOptions
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: listIngestions
+      parameters:
+        - name: limit
+          in: query
+          required: false
+          type: integer
+        - name: collection
+          in: query
+          required: false
+          type: string
+        - name: status
+          in: query
+          required: false
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
   /v1/ingestions/{ingestion_id}:
     options:
       security: []
@@ -176,6 +242,64 @@ paths:
       responses:
         "204":
           description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/ingestions/{ingestion_id}/overview:
+    options:
+      security: []
+      operationId: getIngestionOverviewOptions
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    get:
+      operationId: getIngestionOverview
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+
+  /v1/ingestions/{ingestion_id}/overview/run:
+    options:
+      security: []
+      operationId: runIngestionOverviewOptions
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "204":
+          description: no content
+      x-google-backend:
+        address: "${ingestion_api_url}"
+        path_translation: APPEND_PATH_TO_ADDRESS
+    post:
+      operationId: runIngestionOverview
+      parameters:
+        - name: ingestion_id
+          in: path
+          required: true
+          type: string
+      responses:
+        "200":
+          description: ok
       x-google-backend:
         address: "${ingestion_api_url}"
         path_translation: APPEND_PATH_TO_ADDRESS

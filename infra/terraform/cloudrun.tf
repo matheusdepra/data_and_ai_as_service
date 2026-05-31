@@ -3,6 +3,7 @@ locals {
   enable_ingestion_router = var.ingestion_router_image != ""
   enable_bronzeify_job    = var.bronzeify_image != ""
   enable_silverize_job    = var.silverize_image != ""
+  enable_overviewify_job  = var.overviewify_image != ""
   enable_identity_api     = var.identity_api_image != ""
 }
 
@@ -51,6 +52,10 @@ resource "google_cloud_run_v2_service" "ingestion_api" {
       env {
         name  = "IDENTITY_API_BASE_URL"
         value = local.enable_identity_api ? google_cloud_run_v2_service.identity_api[0].uri : ""
+      }
+      env {
+        name  = "OVERVIEWIFY_JOB_NAME"
+        value = local.enable_overviewify_job ? google_cloud_run_v2_job.overviewify[0].id : ""
       }
     }
   }
@@ -232,6 +237,30 @@ resource "google_cloud_run_v2_job" "silverize" {
           name  = "GCS_BRONZE_BUCKET"
           value = google_storage_bucket.bronze.name
         }
+        env {
+          name  = "OVERVIEWIFY_JOB_NAME"
+          value = local.enable_overviewify_job ? google_cloud_run_v2_job.overviewify[0].id : ""
+        }
+      }
+    }
+  }
+}
+
+resource "google_cloud_run_v2_job" "overviewify" {
+  count      = local.enable_overviewify_job ? 1 : 0
+  name       = "${local.name_prefix}-overviewify"
+  location   = var.region
+  depends_on = [google_project_service.required]
+
+  template {
+    template {
+      service_account = google_service_account.silver_job.email
+      containers {
+        image = var.overviewify_image
+        env {
+          name  = "DV_ENV"
+          value = var.env
+        }
       }
     }
   }
@@ -253,4 +282,20 @@ resource "google_cloud_run_v2_job_iam_member" "router_run_silver" {
   location = var.region
   role     = "roles/run.jobsExecutorWithOverrides"
   member   = "serviceAccount:${google_service_account.ingestion_router.email}"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "silver_run_overview" {
+  count    = local.enable_overviewify_job && local.enable_silverize_job ? 1 : 0
+  name     = google_cloud_run_v2_job.overviewify[0].id
+  location = var.region
+  role     = "roles/run.jobsExecutorWithOverrides"
+  member   = "serviceAccount:${google_service_account.silver_job.email}"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "ingestion_api_run_overview" {
+  count    = local.enable_overviewify_job && local.enable_ingestion_api ? 1 : 0
+  name     = google_cloud_run_v2_job.overviewify[0].id
+  location = var.region
+  role     = "roles/run.jobsExecutorWithOverrides"
+  member   = "serviceAccount:${google_service_account.ingestion_api.email}"
 }

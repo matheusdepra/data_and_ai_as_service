@@ -20,11 +20,12 @@ auth_audience = ""
 ingestion_api_invokers = ["allUsers"]
 
 # Container images (set after you push to Artifact Registry).
-ingestion_router_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/ingestion-router:0.1.2"
-bronzeify_image        = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/bronzeify:dev"
-silverize_image        = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/silverize:dev"
-identity_api_image     = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/identity-api:0.1.6"
-ingestion_api_image     = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/ingestion-api:dev"
+ingestion_router_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/ingestion-router:0.1.3"
+bronzeify_image        = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/bronzeify:0.1.3"
+silverize_image        = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/silverize:0.1.3"
+overviewify_image      = ""
+identity_api_image     = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/identity-api:0.1.7"
+ingestion_api_image     = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/ingestion-api:0.1.7"
 
 enable_api_gateway = true
 firebase_project_id = "daas-mvp-472103"

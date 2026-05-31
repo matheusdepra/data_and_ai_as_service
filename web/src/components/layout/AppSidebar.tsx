@@ -5,7 +5,7 @@ const navItems = [
   { label: "Home", href: "/home", icon: Home },
   { label: "Projects", href: "/workspaces", icon: FolderKanban },
   { label: "Datasets", href: "/datasets", icon: Database },
-  { label: "Ingestions", href: "/track", icon: Upload },
+  { label: "Ingestions", href: "/ingestions", icon: Upload },
   { label: "Catalog", href: "/catalog", icon: BookOpen },
   { label: "Sources", href: "/sources", icon: Plug },
 ];
