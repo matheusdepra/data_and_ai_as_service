@@ -28,6 +28,7 @@ output "cloud_run" {
     identity_api     = local.enable_identity_api ? try(google_cloud_run_v2_service.identity_api[0].name, null) : null
     bronzeify_job    = local.enable_bronzeify_job ? google_cloud_run_v2_job.bronzeify[0].id : null
     silverize_job    = local.enable_silverize_job ? google_cloud_run_v2_job.silverize[0].id : null
+    overviewify_job  = local.enable_overviewify_job ? google_cloud_run_v2_job.overviewify[0].id : null
   }
 }
 

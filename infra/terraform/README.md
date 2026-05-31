@@ -59,6 +59,7 @@ Comece provisionando storage/bq/iam e depois configure as imagens:
 - `ingestion_router_image`
 - `bronzeify_image`
 - `silverize_image`
+- `overviewify_image`
 - `identity_api_image` (Firebase Auth + Firestore membership)
 
 Para o `identity-api`, configure tambem:
@@ -79,3 +80,23 @@ Sem Docker local (Cloud Build):
 
 Dica: para buildar apenas um servico:
 - `./scripts/build_push.sh 0.1.0 --only identity-api`
+- `./scripts/build_push.sh --only identity-api --update-tfvars`
+
+Sem informar tag, o script consulta o Artifact Registry por imagem, ignora tags nao semanticas como `dev` e usa a proxima versao numerica de cada servico.
+Exemplo:
+- `identity-api`: ultima tag `1.1` -> nova tag `1.2`
+- `ingestion-api`: ultima tag `0.1.6` -> nova tag `0.1.7`
+
+Se voce usar `--update-tfvars`, o script atualiza automaticamente as chaves de imagem correspondentes em `infra/terraform/terraform.tfvars` apos o push.
+
+## Overview backend
+O fluxo de overview do dataset usa um Cloud Run Job dedicado:
+- `overviewify`
+
+Quando `overviewify_image` estiver preenchida:
+- o Terraform cria o job `overviewify`
+- `ingestion-api` pode disparar `POST /v1/ingestions/{ingestion_id}/overview/run`
+- `silverize` pode disparar automaticamente a analise apos `silver_ready`
+
+Permissoes aplicadas:
+- `ingestion-api` e `silverize` recebem permissao de `run.invoker` no job `overviewify`

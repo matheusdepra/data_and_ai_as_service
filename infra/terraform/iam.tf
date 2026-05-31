@@ -123,6 +123,31 @@ resource "google_project_iam_member" "datastore_user_identity_api" {
   member  = "serviceAccount:${google_service_account.identity_api.email}"
 }
 
+# Firestore read model permissions for ingestion services/jobs.
+resource "google_project_iam_member" "datastore_user_ingestion_api" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.ingestion_api.email}"
+}
+
+resource "google_project_iam_member" "datastore_user_ingestion_router" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.ingestion_router.email}"
+}
+
+resource "google_project_iam_member" "datastore_user_bronze_job" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.bronze_job.email}"
+}
+
+resource "google_project_iam_member" "datastore_user_silver_job" {
+  project = var.project_id
+  role    = "roles/datastore.user"
+  member  = "serviceAccount:${google_service_account.silver_job.email}"
+}
+
 # Router needs to execute jobs (run.invoker on jobs) - wired in cloudrun.tf when jobs are enabled.
 
 # Bronzeify can optionally trigger silverize after producing bronze artifacts.

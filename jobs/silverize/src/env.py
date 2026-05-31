@@ -15,6 +15,7 @@ class Env:
     gcs_uri: str
     source: str
     dataset: str
+    overviewify_job_name: str | None
 
 
 def _req(name: str) -> str:
@@ -39,5 +40,5 @@ def load_env() -> Env:
         gcs_uri=_req("DV_GCS_URI"),
         source=os.getenv("DV_SOURCE", "upload"),
         dataset=os.getenv("DV_DATASET", "default"),
+        overviewify_job_name=(os.getenv("OVERVIEWIFY_JOB_NAME") or None),
     )
-

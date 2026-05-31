@@ -113,6 +113,12 @@ variable "silverize_image" {
   default     = ""
 }
 
+variable "overviewify_image" {
+  type        = string
+  description = "Container image for overviewify (Cloud Run job). Empty disables resource creation."
+  default     = ""
+}
+
 variable "identity_api_image" {
   type        = string
   description = "Container image for identity-api (Cloud Run service). Empty disables resource creation."

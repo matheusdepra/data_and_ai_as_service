@@ -1,9 +1,13 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { ChartColumnBig, DatabaseZap, Globe, Sparkles } from "lucide-react";
 import { AppLayout } from "./layout";
+import { DatasetCopilotPage } from "@/features/copilot/DatasetCopilotPage";
 import { HomePage } from "@/features/home/HomePage";
+import { WorkspacePage } from "@/features/workspace/WorkspacePage";
+import { DatasetOverviewPage } from "@/ui/pages/DatasetOverviewPage";
 import { CheckEmailPage } from "@/ui/pages/CheckEmailPage";
 import { CompleteLoginPage } from "@/ui/pages/CompleteLoginPage";
+import { IngestionsPage } from "@/ui/pages/IngestionsPage";
 import { LoginPage } from "@/ui/pages/LoginPage";
 import { PlaceholderPage } from "@/ui/pages/PlaceholderPage";
 import { ProcessingPage } from "@/ui/pages/ProcessingPage";
@@ -121,10 +125,14 @@ export function AppRouter() {
         <Route path="/dashboard" element={<Navigate to="/home" replace />} />
         <Route path="/session" element={<SessionPage />} />
         <Route path="/upload" element={<UploadPage />} />
+        <Route path="/ingestions" element={<IngestionsPage />} />
         <Route path="/processing/:ingestionId" element={<ProcessingPage />} />
         <Route path="/track" element={<TrackPage />} />
-        <Route path="/workspaces" element={<PlaceholderPage kind="projects" />} />
+        <Route path="/workspaces" element={<WorkspacePage />} />
+        <Route path="/workspaces/:workspaceId" element={<WorkspacePage />} />
         <Route path="/datasets" element={<PlaceholderPage kind="datasets" />} />
+        <Route path="/datasets/:ingestionId/overview" element={<DatasetOverviewPage />} />
+        <Route path="/datasets/:ingestionId/copilot" element={<DatasetCopilotPage />} />
         <Route path="/catalog" element={<PlaceholderPage kind="catalog" />} />
         <Route path="/sources" element={<PlaceholderPage kind="sources" />} />
         <Route path="/admin/users" element={<PlaceholderPage kind="users" />} />

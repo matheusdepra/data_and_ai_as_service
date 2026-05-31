@@ -5,11 +5,13 @@ import os
 from datetime import datetime, timezone
 
 from google.cloud import bigquery
+from google.cloud import firestore
 from google.cloud import storage
 from google.cloud import run_v2
 
 from .env import load_env
 from .metadata import MetadataStore
+from .read_model import FirestoreReadModel
 
 
 SUPPORTED_EXTENSIONS = {".csv", ".json", ".parquet"}
@@ -96,8 +98,11 @@ def main() -> int:
     bq = bigquery.Client()
     run_jobs = run_v2.JobsClient()
     meta = MetadataStore(bq_client=bq, dataset_id=env.bq_meta_dataset)
+    read_model = FirestoreReadModel(client=firestore.Client())
 
     if not _validate_event_scope(env, meta):
+        read_model.update_status(tenant_id=env.tenant_id, ingestion_id=env.ingestion_id, status="bronze_failed", stage="bronze", message="Escopo do evento inválido.", error={"reason_code": "invalid_event_scope", "message": "Evento fora do tenant/ingestion esperado."})
+        print(json.dumps({"tenant_id": env.tenant_id, "ingestion_id": env.ingestion_id, "stage": "bronze", "status": "bronze_failed", "error_code": "invalid_event_scope"}))
         return 1
 
     src_bucket = gcs.bucket(env.event_bucket)
@@ -127,6 +132,13 @@ def main() -> int:
         )
 
         meta.update_status(tenant_id=env.tenant_id, ingestion_id=env.ingestion_id, status="quarantined")
+        meta.insert_error(
+            tenant_id=env.tenant_id,
+            ingestion_id=env.ingestion_id,
+            stage="bronze",
+            reason_code="unsupported_format",
+            message=f"unsupported extension: {ext}",
+        )
         meta.insert_artifact(
             tenant_id=env.tenant_id,
             ingestion_id=env.ingestion_id,
@@ -141,6 +153,17 @@ def main() -> int:
             artifact_id="error.json",
             gcs_uri=f"gs://{env.gcs_quarantine_bucket}/{err_obj}",
         )
+        read_model.update_status(
+            tenant_id=env.tenant_id,
+            ingestion_id=env.ingestion_id,
+            status="quarantined",
+            stage="bronze",
+            message="Formato não suportado. Verifique CSV, JSON ou Parquet.",
+            collection_slug=_extract_kv(env.event_object, "dataset"),
+            artifact={"layer": "quarantine", "uri": f"gs://{env.gcs_quarantine_bucket}/{q_object}"},
+            error={"reason_code": "unsupported_format", "message": f"unsupported extension: {ext}"},
+        )
+        print(json.dumps({"tenant_id": env.tenant_id, "ingestion_id": env.ingestion_id, "collection_slug": _extract_kv(env.event_object, "dataset"), "stage": "bronze", "status": "quarantined", "gcs_uri": f"gs://{env.gcs_quarantine_bucket}/{q_object}", "error_code": "unsupported_format"}))
         return 0
 
     # Bronze: idempotency check. If manifest already exists, consider the ingestion processed.
@@ -152,6 +175,15 @@ def main() -> int:
             tenant_id=env.tenant_id,
             ingestion_id=env.ingestion_id,
             status="bronze_ready",
+            timestamp_field="bronze_ready_at",
+        )
+        read_model.update_status(
+            tenant_id=env.tenant_id,
+            ingestion_id=env.ingestion_id,
+            status="bronze_ready",
+            stage="bronze",
+            message="Camada bronze já estava pronta.",
+            collection_slug=_extract_kv(env.event_object, "dataset"),
             timestamp_field="bronze_ready_at",
         )
         if env.silverize_job_name:
@@ -197,6 +229,17 @@ def main() -> int:
     manifest_blob.upload_from_string(json.dumps(manifest), content_type="application/json")
 
     meta.update_status(tenant_id=env.tenant_id, ingestion_id=env.ingestion_id, status="bronze_ready", timestamp_field="bronze_ready_at")
+    read_model.update_status(
+        tenant_id=env.tenant_id,
+        ingestion_id=env.ingestion_id,
+        status="bronze_ready",
+        stage="bronze",
+        message="Camada bronze pronta.",
+        collection_slug=manifest.get("dataset") or None,
+        artifact={"layer": "bronze", "uri": f"gs://{env.gcs_bronze_bucket}/{bronze_object}"},
+        timestamp_field="bronze_ready_at",
+    )
+    print(json.dumps({"tenant_id": env.tenant_id, "ingestion_id": env.ingestion_id, "collection_slug": manifest.get("dataset"), "stage": "bronze", "status": "bronze_ready", "gcs_uri": f"gs://{env.gcs_bronze_bucket}/{bronze_object}"}))
     meta.insert_artifact(
         tenant_id=env.tenant_id,
         ingestion_id=env.ingestion_id,

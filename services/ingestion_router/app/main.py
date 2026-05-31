@@ -6,10 +6,12 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from google.cloud import bigquery
+from google.cloud import firestore
 from google.cloud import run_v2
 from google.api_core import exceptions as gexc
 
 from .metadata import MetadataStore
+from .read_model import FirestoreReadModel
 from .parsing import parse_cloudevent, parse_ingestion_from_object_name, parse_storage_finalize
 from .settings import load_settings
 
@@ -21,7 +23,9 @@ logger = logging.getLogger("dativerso.ingestion_router")
 logging.basicConfig(level=logging.INFO)
 
 bq = bigquery.Client()
+fs = firestore.Client()
 meta = MetadataStore(bq_client=bq, dataset_id=settings.bq_meta_dataset)
+read_model = FirestoreReadModel(client=fs)
 jobs = run_v2.JobsClient()
 
 
@@ -66,12 +70,20 @@ async def handle_event(request: Request):
         if not settings.bronzeify_job_name:
             return JSONResponse(status_code=500, content={"error": "BRONZEIFY_JOB_NAME is required"})
 
-        logger.info("Triggering bronzeify tenant_id=%s ingestion_id=%s object=%s", tenant_id, ingestion_id, ev.name)
+        print(json.dumps({"tenant_id": tenant_id, "ingestion_id": ingestion_id, "stage": "router", "status": "bronze_dispatching", "request_id": headers.get("x-cloud-trace-context", ""), "gcs_uri": f"gs://{ev.bucket}/{ev.name}"}))
         # Update status first; if this fails we want Eventarc to retry (5xx).
         meta.update_status(
             tenant_id=tenant_id,
             ingestion_id=ingestion_id,
             status="bronze_running",
+            timestamp_field="bronze_started_at",
+        )
+        read_model.update_status(
+            tenant_id=tenant_id,
+            ingestion_id=ingestion_id,
+            status="bronze_running",
+            stage="bronze",
+            message="Processamento bronze iniciado.",
             timestamp_field="bronze_started_at",
         )
 

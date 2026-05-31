@@ -111,7 +111,7 @@ function HomePageContent() {
               <div className="rounded-lg border border-[#E5E7EB] bg-white p-6 shadow-sm">
                 <div className="flex items-center justify-between gap-4">
                   <h2 className="text-base font-semibold text-[#101828]">Recent Activity</h2>
-                  <a className="text-sm font-medium text-[#6E5BFF] hover:text-[#5F4CF0]" href="/track">
+                  <a className="text-sm font-medium text-[#6E5BFF] hover:text-[#5F4CF0]" href="/ingestions">
                     View all
                   </a>
                 </div>

@@ -15,6 +15,7 @@ class Settings:
     auth_audience: str | None
     bq_meta_dataset: str
     identity_api_base_url: str | None
+    overviewify_job_name: str | None
 
 
 def load_settings() -> Settings:
@@ -27,6 +28,7 @@ def load_settings() -> Settings:
     auth_audience = os.getenv("AUTH_AUDIENCE")
     bq_meta_dataset = os.getenv("BQ_META_DATASET") or f"dv_{dv_env}_meta"
     identity_api_base_url = (os.getenv("IDENTITY_API_BASE_URL") or "").strip() or None
+    overviewify_job_name = (os.getenv("OVERVIEWIFY_JOB_NAME") or "").strip() or None
 
     return Settings(
         dv_env=dv_env,
@@ -38,4 +40,5 @@ def load_settings() -> Settings:
         auth_audience=auth_audience,
         bq_meta_dataset=bq_meta_dataset,
         identity_api_base_url=identity_api_base_url,
+        overviewify_job_name=overviewify_job_name,
     )
