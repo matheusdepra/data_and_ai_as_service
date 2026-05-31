@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 
 const navItems = [
   { label: "Home", href: "/home", icon: Home },
-  { label: "Projects", href: "/workspaces", icon: FolderKanban },
+  { label: "Workspaces", href: "/workspaces", icon: FolderKanban },
   { label: "Datasets", href: "/datasets", icon: Database },
   { label: "Ingestions", href: "/ingestions", icon: Upload },
   { label: "Catalog", href: "/catalog", icon: BookOpen },
