@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import {
-  ArrowRight,
   Bot,
   Info,
   MessageSquarePlus,
@@ -13,11 +12,10 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
-import type { OverviewCopilotContext, OverviewCopilotMessage, SuggestedOutput } from "../types";
+import type { OverviewCopilotContext, OverviewCopilotMessage } from "../types";
 
 type OverviewCopilotRailProps = {
   context: OverviewCopilotContext;
@@ -41,70 +39,89 @@ export function OverviewCopilotRail({
   onSubmit,
 }: OverviewCopilotRailProps) {
   return (
-    <div className="space-y-6">
-      <Card className="sticky top-20">
-        <CardHeader className="space-y-3">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#F3F1FF] text-[#6E5BFF]">
-                <Sparkles aria-hidden="true" className="h-5 w-5" />
-              </span>
-              <div>
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-2xl">Dataset Copilot</CardTitle>
-                  <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5F4CF0]">
-                    Beta
-                  </span>
-                </div>
-                <CardDescription className="mt-1">Your AI assistant for this dataset.</CardDescription>
+    <Card className="overflow-hidden border-[#E5E7EB] shadow-[0_18px_48px_rgba(15,23,42,0.08)]">
+      <CardHeader className="space-y-4 bg-[linear-gradient(180deg,#FBFAFF_0%,#FFFFFF_100%)] pb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#F3F1FF] text-[#6E5BFF] shadow-sm">
+              <Sparkles aria-hidden="true" className="h-5 w-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <CardTitle className="text-[2rem] leading-none">Dataset Copilot</CardTitle>
+                <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#5F4CF0]">
+                  Beta
+                </span>
               </div>
-            </div>
-            <Button variant="ghost" size="icon" type="button" aria-label="Open copilot drawer" onClick={onOpen}>
-              {open ? <PanelRightClose aria-hidden="true" /> : <PanelRightOpen aria-hidden="true" />}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <label className="block">
-            <span className="sr-only">Ask anything about this dataset</span>
-            <Input
-              value={draft}
-              onChange={(event) => onDraftChange(event.target.value)}
-              onFocus={onOpen}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  onSubmit(draft);
-                }
-              }}
-              placeholder="Ask anything about this dataset..."
-              className="h-11"
-            />
-          </label>
-          <div className="space-y-2">
-            <p className="text-sm font-semibold text-[#111827]">Try these</p>
-            <div className="space-y-2">
-              {prompts.map((prompt) => (
-                <Button
-                  key={prompt}
-                  variant="secondary"
-                  className="w-full justify-start"
-                  type="button"
-                  onClick={() => onSubmit(prompt)}
-                  disabled={isThinking}
-                >
-                  <MessageSquarePlus aria-hidden="true" />
-                  {prompt}
-                </Button>
-              ))}
+              <CardDescription className="mt-2 text-sm leading-6">
+                Your AI assistant for this dataset. Ask about meaning, quality, relationships and next outputs without leaving the page.
+              </CardDescription>
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <Button variant="ghost" size="icon" type="button" aria-label="Open copilot drawer" onClick={onOpen}>
+            {open ? <PanelRightClose aria-hidden="true" /> : <PanelRightOpen aria-hidden="true" />}
+          </Button>
+        </div>
 
-      <KnowledgeCard context={context} />
-      <SuggestedOutputsCard outputs={context.suggestedOutputs} />
-    </div>
+        <div className="rounded-2xl border border-[#E5E7EB] bg-white p-4">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[#111827]">{context.datasetName}</p>
+              <p className="mt-1 text-sm text-[#6B7280]">
+                {context.classification} • {context.rows} rows • Quality {context.qualityScore}
+              </p>
+            </div>
+            <Info aria-hidden="true" className="h-4 w-4 text-[#98A2B3]" />
+          </div>
+          <p className="mt-3 text-sm leading-6 text-[#6B7280]">{context.understanding}</p>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4 p-5">
+        <label className="block">
+          <span className="sr-only">Ask anything about this dataset</span>
+          <Textarea
+            value={draft}
+            onChange={(event) => onDraftChange(event.target.value)}
+            onFocus={onOpen}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                event.preventDefault();
+                onSubmit(draft);
+              }
+            }}
+            placeholder="Ask anything about this dataset..."
+            className="min-h-32 resize-none"
+          />
+        </label>
+
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-[#6B7280]">Use `Cmd/Ctrl + Enter` to send.</p>
+          <Button type="button" onClick={() => onSubmit(draft)} disabled={isThinking || !draft.trim()}>
+            Ask Copilot
+            <MessageSquarePlus aria-hidden="true" />
+          </Button>
+        </div>
+
+        <div className="space-y-2 border-t border-[#EEF2F7] pt-4">
+          <p className="text-sm font-semibold text-[#111827]">Try these</p>
+          <div className="space-y-2">
+            {prompts.map((prompt) => (
+              <Button
+                key={prompt}
+                variant="secondary"
+                className="w-full justify-start whitespace-normal text-left"
+                type="button"
+                onClick={() => onSubmit(prompt)}
+                disabled={isThinking}
+              >
+                <MessageSquarePlus aria-hidden="true" />
+                {prompt}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -132,6 +149,8 @@ export function OverviewCopilotDrawer({
   onSubmit,
 }: OverviewCopilotDrawerProps) {
   const messagesRef = useRef<HTMLDivElement | null>(null);
+  const hasUserMessages = messages.some((message) => message.role === "user");
+  const visibleMessages = hasUserMessages ? messages.filter((message) => !message.id.startsWith("assistant-welcome-")) : messages;
 
   useEffect(() => {
     if (messagesRef.current) {
@@ -164,9 +183,6 @@ export function OverviewCopilotDrawer({
               </span>
               <div>
                 <p className="text-lg font-semibold text-[#111827]">{context.datasetName} Copilot</p>
-                <p className="mt-1 text-sm text-[#6B7280]">
-                  Stay inside the overview while clarifying quality, terms, relationships and next steps.
-                </p>
               </div>
             </div>
             <Button variant="ghost" size="icon" type="button" aria-label="Close copilot drawer" onClick={onClose}>
@@ -176,7 +192,7 @@ export function OverviewCopilotDrawer({
         </div>
 
         <div ref={messagesRef} className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
-          {messages.map((message) => (
+          {visibleMessages.map((message) => (
             <article
               key={message.id}
               className={cn(
@@ -189,13 +205,12 @@ export function OverviewCopilotDrawer({
               {message.role === "assistant" ? (
                 <div className="space-y-3">
                   {message.title ? <p className="text-sm font-semibold">{message.title}</p> : null}
-                  <p className="text-sm leading-7 text-[#4B5563]">{message.body}</p>
+                  <CopilotRichText value={message.body} />
                   {message.bullets?.length ? (
-                    <ul className="space-y-2">
+                    <ul className="space-y-2 border-t border-[#E5E7EB] pt-3">
                       {message.bullets.map((bullet) => (
-                        <li key={bullet} className="flex gap-2 text-sm text-[#111827]">
-                          <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#6E5BFF]" />
-                          <span>{bullet}</span>
+                        <li key={bullet} className="text-xs leading-5 text-[#6B7280]">
+                          <span className="font-medium text-[#111827]">Source:</span> <span>{bullet}</span>
                         </li>
                       ))}
                     </ul>
@@ -216,34 +231,33 @@ export function OverviewCopilotDrawer({
 
         <div className="border-t border-[#E5E7EB] px-6 py-5">
           <div className="space-y-4">
-            <div className="rounded-2xl border border-[#E5E7EB] bg-[#FAFBFC] p-4">
-              <div className="flex items-center gap-2">
-                <Info aria-hidden="true" className="h-4 w-4 text-[#6E5BFF]" />
-                <p className="text-sm font-semibold text-[#111827]">Current context</p>
-              </div>
-              <p className="mt-2 text-sm text-[#6B7280]">
-                {context.classification} • {context.rows} rows • {context.columns} columns • Quality {context.qualityScore}
-              </p>
-            </div>
 
             <label className="block">
               <span className="sr-only">Chat with this dataset</span>
               <Textarea
                 value={draft}
                 onChange={(event) => onDraftChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+                    event.preventDefault();
+                    onSubmit(draft);
+                  }
+                }}
                 placeholder="Ask about business context, quality issues or next outputs..."
                 className="min-h-28"
               />
             </label>
 
-            <div className="flex flex-wrap gap-2">
-              {prompts.slice(0, 3).map((prompt) => (
-                <Button key={prompt} variant="secondary" size="sm" type="button" onClick={() => onSubmit(prompt)} disabled={isThinking}>
-                  <MessageSquarePlus aria-hidden="true" />
-                  {prompt}
-                </Button>
-              ))}
-            </div>
+            {!hasUserMessages ? (
+              <div className="flex flex-wrap gap-2">
+                {prompts.slice(0, 3).map((prompt) => (
+                  <Button key={prompt} variant="secondary" size="sm" type="button" onClick={() => onSubmit(prompt)} disabled={isThinking}>
+                    <MessageSquarePlus aria-hidden="true" />
+                    {prompt}
+                  </Button>
+                ))}
+              </div>
+            ) : null}
 
             <div className="flex items-center justify-between gap-3">
               <Button variant="ghost" type="button" onClick={onClose}>
@@ -261,69 +275,149 @@ export function OverviewCopilotDrawer({
   );
 }
 
-function KnowledgeCard({ context }: { context: OverviewCopilotContext }) {
-  return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle>Dataset Knowledge</CardTitle>
-            <CardDescription>AI suggested information about this dataset.</CardDescription>
-          </div>
-          <Info aria-hidden="true" className="h-4 w-4 text-[#98A2B3]" />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <KnowledgeLine label="Title" value={context.datasetName} />
-        <KnowledgeLine label="Business Area" value={context.businessArea} />
-        <KnowledgeLine label="Domain" value={context.domain} />
-        <div className="rounded-xl border border-[#E5E7EB] bg-[#FAFBFC] px-4 py-3">
-          <p className="text-xs uppercase tracking-wide text-[#6B7280]">Description</p>
-          <p className="mt-2 text-sm leading-6 text-[#111827]">{context.understanding}</p>
-        </div>
-        <Button variant="secondary" className="w-full" type="button">
-          Refine all with Copilot
-          <ArrowRight aria-hidden="true" />
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
+function CopilotRichText({ value }: { value: string }) {
+  const blocks = parseMarkdownBlocks(value);
 
-function SuggestedOutputsCard({ outputs }: { outputs: SuggestedOutput[] }) {
   return (
-    <Card className="bg-[linear-gradient(180deg,#FBFAFF_0%,#FFFFFF_100%)]">
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <CardTitle>Suggested Outputs</CardTitle>
-            <CardDescription>Likely next assets to create from this dataset.</CardDescription>
-          </div>
-          <span className="rounded-full bg-[#EEF2FF] px-2 py-0.5 text-xs font-semibold text-[#5F4CF0]">{outputs.length}</span>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {outputs.map((output) => (
-          <div key={output.name} className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[#111827]">{output.name}</p>
-                <p className="mt-1 text-sm leading-6 text-[#6B7280]">{output.description}</p>
-              </div>
-              <span className="rounded-full bg-[#ECFDF3] px-2 py-0.5 text-xs font-semibold text-[#15803D]">{output.confidence}%</span>
+    <div className="space-y-3 text-sm leading-7 text-[#4B5563]">
+      {blocks.map((block, index) => {
+        if (block.type === "list") {
+          return (
+            <ul key={index} className="list-disc space-y-1 pl-5">
+              {block.items.map((item) => (
+                <li key={item}>{renderInlineMarkdown(item)}</li>
+              ))}
+            </ul>
+          );
+        }
+
+        if (block.type === "table") {
+          return (
+            <div key={index} className="overflow-x-auto rounded-xl border border-[#E5E7EB] bg-white">
+              <table className="w-full border-separate border-spacing-0 text-left text-xs">
+                <thead className="bg-[#FAFBFC] text-[#6B7280]">
+                  <tr>
+                    {block.headers.map((header) => (
+                      <th key={header} className="border-b border-[#E5E7EB] px-3 py-2 font-semibold">
+                        {renderInlineMarkdown(header)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {block.rows.map((row, rowIndex) => (
+                    <tr key={rowIndex} className="odd:bg-white even:bg-[#FAFBFC]">
+                      {block.headers.map((_, cellIndex) => (
+                        <td key={cellIndex} className="border-b border-[#EEF2F7] px-3 py-2 text-[#111827]">
+                          {renderInlineMarkdown(row[cellIndex] || "")}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  );
-}
+          );
+        }
 
-function KnowledgeLine({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-xl border border-[#E5E7EB] bg-[#FAFBFC] px-4 py-3">
-      <p className="text-xs uppercase tracking-wide text-[#6B7280]">{label}</p>
-      <p className="mt-1 text-sm font-semibold text-[#111827]">{value}</p>
+        return <p key={index}>{renderInlineMarkdown(block.text)}</p>;
+      })}
     </div>
   );
+}
+
+type MarkdownBlock =
+  | { type: "paragraph"; text: string }
+  | { type: "list"; items: string[] }
+  | { type: "table"; headers: string[]; rows: string[][] };
+
+function parseMarkdownBlocks(value: string): MarkdownBlock[] {
+  const lines = value.split(/\r?\n/);
+  const blocks: MarkdownBlock[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index].trim();
+
+    if (!line) {
+      index += 1;
+      continue;
+    }
+
+    if (isTableStart(lines, index)) {
+      const tableLines: string[] = [];
+      while (index < lines.length && lines[index].trim().startsWith("|")) {
+        tableLines.push(lines[index]);
+        index += 1;
+      }
+      const [headerLine, , ...rowLines] = tableLines;
+      blocks.push({
+        type: "table",
+        headers: splitTableRow(headerLine),
+        rows: rowLines.map(splitTableRow),
+      });
+      continue;
+    }
+
+    if (/^[-*]\s+/.test(line)) {
+      const items: string[] = [];
+      while (index < lines.length && /^[-*]\s+/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^[-*]\s+/, ""));
+        index += 1;
+      }
+      blocks.push({ type: "list", items });
+      continue;
+    }
+
+    const paragraph: string[] = [];
+    while (
+      index < lines.length &&
+      lines[index].trim() &&
+      !/^[-*]\s+/.test(lines[index].trim()) &&
+      !isTableStart(lines, index)
+    ) {
+      paragraph.push(lines[index].trim());
+      index += 1;
+    }
+    blocks.push({ type: "paragraph", text: paragraph.join(" ") });
+  }
+
+  return blocks;
+}
+
+function isTableStart(lines: string[], index: number) {
+  return Boolean(lines[index]?.trim().startsWith("|") && lines[index + 1]?.trim().match(/^\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)+\|?$/));
+}
+
+function splitTableRow(line: string) {
+  return line
+    .trim()
+    .replace(/^\|/, "")
+    .replace(/\|$/, "")
+    .split("|")
+    .map((cell) => cell.trim());
+}
+
+function renderInlineMarkdown(value: string): React.ReactNode[] {
+  const parts = value.split(/(`[^`]+`|\*\*[^*]+\*\*)/g).filter(Boolean);
+
+  return parts.map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**")) {
+      return (
+        <strong key={index} className="font-semibold text-[#111827]">
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+
+    if (part.startsWith("`") && part.endsWith("`")) {
+      return (
+        <code key={index} className="rounded bg-white px-1.5 py-0.5 font-mono text-xs text-[#111827]">
+          {part.slice(1, -1)}
+        </code>
+      );
+    }
+
+    return <span key={index}>{part}</span>;
+  });
 }

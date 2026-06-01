@@ -170,6 +170,14 @@ export type IngestionOverviewResponse = {
   } | null;
 };
 
+export type OverviewChatResponse = {
+  session_id: string;
+  answer: string;
+  used_prompt_key: string;
+  used_context_sources: string[];
+  metadata: Record<string, unknown>;
+};
+
 export type UploadResponse = {
   tenant_id: string;
   ingestion_id: string;
@@ -189,6 +197,12 @@ function baseUrl(): string {
     (import.meta.env.VITE_API_BASE_URL as string | undefined) ||
     (import.meta.env.VITE_INGESTION_API_BASE_URL as string | undefined);
   if (!v) throw new Error("Missing VITE_API_BASE_URL (ou VITE_INGESTION_API_BASE_URL)");
+  return v.replace(/\/$/, "");
+}
+
+function aiAssistantBaseUrl(): string {
+  const v = (import.meta.env.VITE_AI_ASSISTANT_API_BASE_URL as string | undefined)?.trim();
+  if (!v) throw new Error("Missing VITE_AI_ASSISTANT_API_BASE_URL");
   return v.replace(/\/$/, "");
 }
 
@@ -274,4 +288,35 @@ export async function runIngestionOverview(args: { jwt: string; ingestionId: str
     headers: authHeaders(args.jwt),
   });
   return json<{ ok: boolean; status: string }>(res);
+}
+
+export async function sendOverviewCopilotMessage(args: {
+  jwt: string;
+  sessionId: string;
+  ingestionId: string;
+  message: string;
+}): Promise<OverviewChatResponse> {
+  const headers = authHeaders(args.jwt) as Record<string, string>;
+  const aiApiKey = (import.meta.env.VITE_AI_ASSISTANT_API_KEY as string | undefined)?.trim();
+  if (aiApiKey) {
+    headers["x-api-key"] = aiApiKey;
+  }
+  const res = await fetch(`${aiAssistantBaseUrl()}/api/v1/chat/messages`, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: args.sessionId,
+      message: args.message,
+      agent_key: "dataset_overview",
+      scope: {
+        screen: "dataset_overview",
+        ingestion_id: args.ingestionId,
+      },
+      context: {},
+    }),
+  });
+  return json<OverviewChatResponse>(res);
 }

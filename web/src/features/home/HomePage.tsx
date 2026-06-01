@@ -3,22 +3,10 @@ import { ActionCard } from "./components/ActionCard";
 import { ActivityTimeline } from "./components/ActivityTimeline";
 import { HomeEmptyState } from "./components/HomeEmptyState";
 import { SuggestionCard } from "./components/SuggestionCard";
+import { LoadingState } from "@/components/shared/LoadingState";
 import { useHomeData } from "./hooks/use-home-data";
 import { isHomeEmpty } from "./services/home-service";
 import type { SuggestionAction } from "./types";
-
-function LoadingState() {
-  return (
-    <div className="space-y-4" aria-label="Loading Home">
-      <div className="h-36 animate-pulse rounded-lg bg-slate-100" />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="h-24 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-24 animate-pulse rounded-lg bg-slate-100" />
-        <div className="h-24 animate-pulse rounded-lg bg-slate-100" />
-      </div>
-    </div>
-  );
-}
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
@@ -51,11 +39,12 @@ function HomePageContent() {
     }
   }
 
+  if (isLoading) return <LoadingState label="Loading home" />;
+  if (isError) return <ErrorState onRetry={() => void refetch()} />;
+
   return (
     <div>
       <div className="grid gap-8">
-        {isLoading ? <LoadingState /> : null}
-        {isError ? <ErrorState onRetry={() => void refetch()} /> : null}
         {data && isHomeEmpty(data) ? <HomeEmptyState /> : null}
         {data && !isHomeEmpty(data) ? (
           <>

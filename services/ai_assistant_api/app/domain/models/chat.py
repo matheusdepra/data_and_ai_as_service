@@ -19,6 +19,11 @@ class ChatMessage(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
 
 
+class ChatScope(BaseModel):
+    screen: str | None = None
+    ingestion_id: str | None = None
+
+
 class ChatRequestContext(BaseModel):
     dataset: str | None = None
     tables: list[str] = Field(default_factory=list)

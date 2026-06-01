@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     bigquery_max_bytes_billed: int | None = None
     vertex_model_name: str = "gemini-1.5-flash"
     request_history_limit: int = 20
+    ingestion_api_base_url: str | None = None
+    ingestion_api_timeout_seconds: float = 15.0
 
 
 @lru_cache

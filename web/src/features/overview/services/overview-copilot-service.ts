@@ -1,4 +1,4 @@
-import type { IngestionDetail, IngestionOverviewResponse } from "@/ui/lib/api";
+import type { IngestionDetail, IngestionOverviewResponse, OverviewChatResponse } from "@/ui/lib/api";
 
 import { overviewCopilotPrompts } from "../mocks/overview-copilot.mock";
 import type { OverviewCopilotContext, OverviewCopilotMessage, SuggestedOutput } from "../types";
@@ -83,11 +83,12 @@ export function createOverviewCopilotWelcome(context: OverviewCopilotContext): O
   };
 }
 
-export async function getOverviewCopilotReply(args: {
+export function formatOverviewCopilotReply(args: {
   context: OverviewCopilotContext;
   question: string;
-}): Promise<OverviewCopilotMessage> {
-  const { context, question } = args;
+  response: OverviewChatResponse;
+}): OverviewCopilotMessage {
+  const { context, question, response } = args;
   const normalized = question.trim().toLowerCase();
 
   if (!normalized) {
@@ -99,87 +100,39 @@ export async function getOverviewCopilotReply(args: {
       bullets: overviewCopilotPrompts,
     };
   }
+  const title = includesAny(normalized, ["quality", "warning", "issue", "problem", "problema", "qualidade"])
+    ? "Quality review"
+    : includesAny(normalized, ["relationship", "related", "join", "contract", "orders", "relacion"])
+      ? "Relationship analysis"
+      : includesAny(normalized, ["term", "glossary", "business term", "meaning", "campo", "column", "schema"])
+        ? "Business meaning"
+        : includesAny(normalized, ["output", "build", "dashboard", "analytic", "analytics", "workspace"])
+          ? "Suggested outputs"
+          : includesAny(normalized, ["maior numero de clientes", "top", "highest", "rank", "cliente"])
+            ? "Analytical query guidance"
+            : "Dataset context";
 
-  if (includesAny(normalized, ["quality", "warning", "issue", "problem", "problema", "qualidade"])) {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      title: "Quality review",
-      body: `${context.datasetName} is currently assessed at ${context.qualityScore}. The strongest signal is validity, while the weakest areas deserve remediation before broader reuse.`,
-      bullets: [
-        ...context.qualityMetrics.slice(1).map((metric) => `${metric.label}: ${metric.value}`),
-        ...(context.schemaWarnings.length ? context.schemaWarnings : ["No explicit schema warnings were generated in the current overview."]),
-      ],
-    };
-  }
-
-  if (includesAny(normalized, ["relationship", "related", "join", "contract", "orders", "relacion"])) {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      title: "Relationship analysis",
-      body:
-        context.relationships.length > 0
-          ? `${context.datasetName} already has detected relationships that can accelerate asset creation without starting from raw joins.`
-          : `No strong cross-dataset relationship was inferred yet for ${context.datasetName}.`,
-      bullets:
-        context.relationships.length > 0
-          ? context.relationships.map(
-              (relationship) =>
-                `${relationship.datasetName}: ${relationship.confidence}% confidence via ${relationship.sharedColumns.join(", ")}`,
-            )
-          : ["Use Copilot again after more tenant datasets are processed to improve relationship discovery."],
-    };
-  }
-
-  if (includesAny(normalized, ["term", "glossary", "business term", "meaning", "campo", "column", "schema"])) {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      title: "Business meaning",
-      body: `${context.datasetName} is being framed as ${context.dataType} for the ${context.businessArea} area. The most relevant concepts extracted so far are listed below.`,
-      bullets: context.terms.length > 0 ? context.terms : ["No business terms have been extracted yet from the current overview."],
-    };
-  }
-
-  if (includesAny(normalized, ["output", "build", "dashboard", "analytic", "analytics", "workspace"])) {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      title: "Suggested outputs",
-      body: `Based on the current understanding of ${context.datasetName}, these are the most plausible next assets to create in Workspace.`,
-      bullets: context.suggestedOutputs.map(
-        (output) => `${output.name}: ${output.description} (${output.confidence}% confidence)`,
-      ),
-    };
-  }
-
-  if (includesAny(normalized, ["maior numero de clientes", "top", "highest", "rank", "cliente"])) {
-    return {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      title: "Analytical query guidance",
-      body: "This overview can explain what the dataset represents, but it does not run ad hoc analytical ranking yet.",
-      bullets: [
-        "Use Dataset Copilot to clarify fields such as customer identifiers, segments and relationship keys.",
-        "Open Workspace when you want to combine this dataset with others and generate ranked outputs or dashboards.",
-        `Current table reference: ${context.tableName}`,
-      ],
-    };
-  }
+  const bullets = response.used_context_sources
+    .map(formatContextSource)
+    .filter(Boolean)
+    .slice(0, 3);
 
   return {
     id: crypto.randomUUID(),
     role: "assistant",
-    title: "Dataset context",
-    body: context.understanding,
-    bullets: [
-      `Business area: ${context.businessArea}`,
-      `Domain: ${context.domain}`,
-      `Typical usage: ${context.usage.join(", ") || "-"}`,
-      `Rows: ${context.rows} • Columns: ${context.columns} • Updated: ${context.updatedAt}`,
-    ],
+    title,
+    body: response.answer || context.understanding,
+    bullets: bullets.length ? bullets : undefined,
   };
+}
+
+function formatContextSource(source: string): string {
+  const cleanSource = source.replace(/^ingestion-api:/, "");
+  if (cleanSource.endsWith("/overview")) return "Dataset overview";
+  if (cleanSource.includes("/v1/ingestions/")) return "Dataset metadata";
+  if (cleanSource.startsWith("tool:")) return "Copilot action";
+  if (cleanSource.startsWith("bigquery:")) return "Warehouse context";
+  return "Dataset context";
 }
 
 function buildSuggestedOutputs(args: {

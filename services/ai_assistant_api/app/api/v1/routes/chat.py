@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.api.v1.deps import get_send_chat_message_use_case
 from app.application.use_cases.send_chat_message import SendChatMessageCommand, SendChatMessageUseCase
-from app.domain.models.chat import ChatRequestContext
+from app.domain.models.chat import ChatRequestContext, ChatScope
 
 
 class ChatMessageRequest(BaseModel):
@@ -15,7 +15,9 @@ class ChatMessageRequest(BaseModel):
     user_id: str | None = Field(default=None, min_length=1)
     message: str = Field(min_length=1)
     prompt_key: str = Field(default="data_analyst", min_length=1)
+    agent_key: str | None = Field(default=None, min_length=1)
     context: ChatRequestContext = Field(default_factory=ChatRequestContext)
+    scope: ChatScope = Field(default_factory=ChatScope)
 
 
 class ChatMessageResponse(BaseModel):
@@ -35,5 +37,8 @@ async def send_chat_message(
     payload: ChatMessageRequest,
     use_case: Annotated[SendChatMessageUseCase, Depends(get_send_chat_message_use_case)],
 ) -> ChatMessageResponse:
-    result = await use_case.execute(command=SendChatMessageCommand(**payload.model_dump()), headers=request.headers)
+    body = payload.model_dump()
+    if payload.agent_key:
+        body["prompt_key"] = payload.agent_key
+    result = await use_case.execute(command=SendChatMessageCommand(**body), headers=request.headers)
     return ChatMessageResponse(**result.model_dump())

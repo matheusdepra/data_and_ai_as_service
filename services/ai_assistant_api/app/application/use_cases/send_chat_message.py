@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from pydantic import BaseModel, Field
 
 from app.application.services.chat_service import ChatService
-from app.domain.models.chat import ChatRequestContext, ChatResponse
+from app.domain.models.chat import ChatRequestContext, ChatResponse, ChatScope
 from app.domain.ports.auth_user_context_provider import AuthUserContextProvider
 
 
@@ -14,6 +14,7 @@ class SendChatMessageCommand(BaseModel):
     message: str = Field(min_length=1)
     prompt_key: str = Field(default="data_analyst", min_length=1)
     context: ChatRequestContext = Field(default_factory=ChatRequestContext)
+    scope: ChatScope = Field(default_factory=ChatScope)
 
 
 class SendChatMessageUseCase:
@@ -29,4 +30,6 @@ class SendChatMessageUseCase:
             message=command.message,
             prompt_key=command.prompt_key,
             request_context=command.context,
+            request_scope=command.scope,
+            request_headers=headers,
         )

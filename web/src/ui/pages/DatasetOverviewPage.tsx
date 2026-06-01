@@ -1,13 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { Link, useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Brain,
   Database,
   FileSpreadsheet,
+  Globe2,
   Link2,
-  RefreshCw,
+  Languages,
   ShieldCheck,
   Sparkles,
   TableProperties,
@@ -15,7 +16,6 @@ import {
 
 import { DataPreviewTable } from "@/components/data/DataPreviewTable";
 import { DataTable } from "@/components/data/DataTable";
-import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState } from "@/components/shared/ErrorState";
 import { LoadingState } from "@/components/shared/LoadingState";
 import { Badge } from "@/components/ui/badge";
@@ -26,7 +26,7 @@ import { overviewCopilotPrompts } from "@/features/overview/mocks/overview-copil
 import {
   buildOverviewCopilotContext,
   createOverviewCopilotWelcome,
-  getOverviewCopilotReply,
+  formatOverviewCopilotReply,
 } from "@/features/overview/services/overview-copilot-service";
 import type { OverviewCopilotMessage } from "@/features/overview/types";
 
@@ -34,6 +34,7 @@ import {
   getIngestionDetail,
   getIngestionOverview,
   runIngestionOverview,
+  sendOverviewCopilotMessage,
   type IngestionDetail,
   type IngestionOverviewResponse,
 } from "../lib/api";
@@ -41,6 +42,7 @@ import { getJwt } from "../lib/storage";
 
 export function DatasetOverviewPage() {
   const { ingestionId = "" } = useParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const normalizedIngestionId = ingestionId.trim();
   const [detail, setDetail] = useState<IngestionDetail | null>(null);
   const [overview, setOverview] = useState<IngestionOverviewResponse | null>(null);
@@ -50,6 +52,7 @@ export function DatasetOverviewPage() {
   const [copilotDraft, setCopilotDraft] = useState("");
   const [copilotThinking, setCopilotThinking] = useState(false);
   const [copilotMessages, setCopilotMessages] = useState<OverviewCopilotMessage[]>([]);
+  const copilotSessionId = useRef(crypto.randomUUID());
   const requestedRun = useRef(false);
 
   useEffect(() => {
@@ -148,6 +151,7 @@ export function DatasetOverviewPage() {
   const previewRows = overview?.overview?.preview_rows || [];
   const relationships = overview?.overview?.relationships || [];
   const terms = overview?.overview?.terms || [];
+  const activeTab = getOverviewTab(searchParams.get("tab"));
   const overviewContext = useMemo(
     () =>
       buildOverviewCopilotContext({
@@ -164,7 +168,12 @@ export function DatasetOverviewPage() {
     setCopilotDraft("");
     setCopilotThinking(false);
     setCopilotOpen(false);
+    copilotSessionId.current = crypto.randomUUID();
   }, [overviewContext.ingestionId, overviewContext.datasetName]);
+
+  if (busy && !overview) {
+    return <LoadingState rows={4} label="Loading dataset overview" />;
+  }
 
   async function handleCopilotSubmit(question: string) {
     const cleanQuestion = question.trim();
@@ -175,8 +184,25 @@ export function DatasetOverviewPage() {
     setCopilotMessages((prev) => [...prev, { id: crypto.randomUUID(), role: "user", body: cleanQuestion }]);
     setCopilotThinking(true);
     try {
-      const reply = await getOverviewCopilotReply({ context: overviewContext, question: cleanQuestion });
+      const jwt = getJwt();
+      const response = await sendOverviewCopilotMessage({
+        jwt,
+        sessionId: copilotSessionId.current,
+        ingestionId: normalizedIngestionId,
+        message: cleanQuestion,
+      });
+      const reply = formatOverviewCopilotReply({ context: overviewContext, question: cleanQuestion, response });
       setCopilotMessages((prev) => [...prev, reply]);
+    } catch (error) {
+      setCopilotMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          title: "Copilot unavailable",
+          body: error instanceof Error ? error.message : "The dataset copilot could not answer right now.",
+        },
+      ]);
     } finally {
       setCopilotThinking(false);
     }
@@ -184,33 +210,6 @@ export function DatasetOverviewPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Dataset Overview"
-        description="Understanding comes before technical detail. Review what Dativerso learned, what quality it found and what can be built next."
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <Badge variant={overviewStatus === "ready" ? "success" : overviewStatus === "failed" ? "warning" : "info"}>
-              {overviewStatus === "ready" ? "Overview ready" : overviewStatus === "failed" ? "Needs retry" : "Preparing overview"}
-            </Badge>
-            <Button variant="secondary" type="button" onClick={() => setCopilotOpen(true)}>
-              Dataset Copilot
-              <Sparkles aria-hidden="true" />
-            </Button>
-            <Button variant="outline" type="button" onClick={() => window.location.reload()}>
-              <RefreshCw aria-hidden="true" />
-              Refresh
-            </Button>
-            <Button variant="outline" asChild>
-              <Link to="/ingestions">Back to Ingestions</Link>
-            </Button>
-          </div>
-        }
-      />
-
-      <OverviewTabs />
-
-      {busy && !overview ? <LoadingState rows={4} /> : null}
-
       {overviewStatus === "failed" ? (
         <ErrorState
           message="Overview analysis failed"
@@ -226,34 +225,79 @@ export function DatasetOverviewPage() {
 
       {overviewStatus !== "failed" ? (
         <>
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
-            <div className="space-y-6">
+          <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_390px] xl:items-start">
+            <div className="space-y-4">
               <DatasetHeroCard
                 datasetName={overviewContext.datasetName}
                 classification={overviewContext.classification}
                 tags={overviewContext.tags}
                 statusLabel={overviewContext.statusLabel}
+                overviewStatus={overviewStatus}
                 updatedAt={overviewContext.updatedAt}
               />
 
-              <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-                <AiUnderstandingCard
-                  summaryText={overviewContext.understanding}
-                  confidence={overviewContext.confidence}
-                  onOpenCopilot={() => setCopilotOpen(true)}
-                />
-                <DatasetSummaryCard context={overviewContext} />
-              </div>
+              <OverviewTabs
+                activeTab={activeTab}
+                onChange={(tab) => {
+                  const next = new URLSearchParams(searchParams);
+                  if (tab === "overview") {
+                    next.delete("tab");
+                  } else {
+                    next.set("tab", tab);
+                  }
+                  setSearchParams(next, { replace: true });
+                }}
+              />
 
-              <div className="grid gap-6 xl:grid-cols-[1.08fr_0.92fr_1.18fr]">
-                <BusinessDescriptionCard
-                  businessArea={overviewContext.businessArea}
-                  domain={overviewContext.domain}
-                  dataType={overviewContext.dataType}
-                  usage={overviewContext.usage}
-                  onOpenCopilot={() => setCopilotOpen(true)}
+      {activeTab === "overview" ? (
+                <div className="grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
+                  <AiUnderstandingCard
+                    summaryText={overviewContext.understanding}
+                    confidence={overviewContext.confidence}
+                    onOpenCopilot={() => setCopilotOpen(true)}
+                  />
+                  <DatasetSummaryCard context={overviewContext} />
+                </div>
+              ) : null}
+
+              {activeTab === "data" ? (
+                previewColumns.length ? (
+                  <DataPreviewTable rows={previewRows} columns={previewColumns} />
+                ) : (
+                  <TabEmptyState
+                    title="Data preview not available yet"
+                    description="Dativerso still has no preview rows for this dataset."
+                  />
+                )
+              ) : null}
+
+              {activeTab === "schema" ? (
+                <DataTable
+                  title="Schema Signals"
+                  description="Keep technical details available, but secondary to understanding and business context."
+                  columns={schemaColumns}
+                  data={schemaRows}
+                  searchPlaceholder="Search schema warnings"
                 />
-                <TermsCard terms={terms} onOpenCopilot={() => setCopilotOpen(true)} />
+              ) : null}
+
+              {activeTab === "insights" ? (
+                <>
+                  <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                    <BusinessDescriptionCard
+                      businessArea={overviewContext.businessArea}
+                      domain={overviewContext.domain}
+                      dataType={overviewContext.dataType}
+                      usage={overviewContext.usage}
+                      onOpenCopilot={() => setCopilotOpen(true)}
+                    />
+                    <TermsCard terms={terms} onOpenCopilot={() => setCopilotOpen(true)} />
+                  </div>
+                  <QualityCard quality={quality} />
+                </>
+              ) : null}
+
+              {activeTab === "lineage" ? (
                 <RelationshipsCard
                   datasetName={overviewContext.datasetName}
                   relationships={relationships.map((relationship) => ({
@@ -263,22 +307,10 @@ export function DatasetOverviewPage() {
                     sharedColumns: relationship.shared_columns.map(humanize),
                   }))}
                 />
-              </div>
-
-              <QualityCard quality={quality} />
-
-              {previewColumns.length ? <DataPreviewTable rows={previewRows} columns={previewColumns} /> : null}
-
-              <DataTable
-                title="Schema Signals"
-                description="Keep technical details available, but secondary to understanding and business context."
-                columns={schemaColumns}
-                data={schemaRows}
-                searchPlaceholder="Search schema warnings"
-              />
+              ) : null}
             </div>
 
-            <aside className="space-y-6">
+            <aside className="xl:h-full">
               <OverviewCopilotRail
                 context={overviewContext}
                 draft={copilotDraft}
@@ -316,19 +348,39 @@ type SchemaRow = {
   warnings?: string[];
 };
 
-function OverviewTabs() {
+type OverviewTab = "overview" | "data" | "schema" | "insights" | "lineage";
+
+function OverviewTabs({
+  activeTab,
+  onChange,
+}: {
+  activeTab: OverviewTab;
+  onChange: (tab: OverviewTab) => void;
+}) {
+  const tabs: Array<{ id: OverviewTab; label: string }> = [
+    { id: "overview", label: "Overview" },
+    { id: "data", label: "Data" },
+    { id: "schema", label: "Schema" },
+    { id: "insights", label: "Insights" },
+    { id: "lineage", label: "Lineage" },
+  ];
+
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-[#E5E7EB] pb-2">
-      {["Overview", "Data", "Schema", "Insights", "Lineage"].map((tab, index) => (
+      {tabs.map((tab) => (
         <button
-          key={tab}
+          key={tab.id}
           type="button"
+          aria-pressed={activeTab === tab.id}
           className={[
-            "rounded-full px-4 py-2 text-sm font-medium transition",
-            index === 0 ? "bg-[#F3F1FF] text-[#6E5BFF]" : "text-[#6B7280] hover:bg-[#FAFBFC] hover:text-[#111827]",
+            "rounded-full border px-4 py-2 text-sm font-medium transition",
+            activeTab === tab.id
+              ? "border-[#6E5BFF] bg-[#F3F1FF] text-[#6E5BFF]"
+              : "border-transparent text-[#6B7280] hover:border-[#E5E7EB] hover:bg-[#FAFBFC] hover:text-[#111827]",
           ].join(" ")}
+          onClick={() => onChange(tab.id)}
         >
-          {tab}
+          {tab.label}
         </button>
       ))}
     </div>
@@ -340,39 +392,49 @@ function DatasetHeroCard(args: {
   classification: string;
   tags: string[];
   statusLabel: string;
+  overviewStatus: string;
   updatedAt: string;
 }) {
-  const { datasetName, classification, tags, statusLabel, updatedAt } = args;
+  const { datasetName, classification, tags, statusLabel, overviewStatus, updatedAt } = args;
   return (
-    <Card>
-      <CardContent className="grid gap-6 p-6 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="flex items-start gap-4">
-          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#22C55E_0%,#16A34A_100%)] text-white shadow-sm">
-            <FileSpreadsheet aria-hidden="true" className="h-7 w-7" />
-          </span>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-4xl font-bold tracking-normal text-[#111827]">{datasetName}</h2>
-              <Badge variant={statusLabel === "Ready to use" ? "success" : "info"}>{statusLabel}</Badge>
-            </div>
-            <p className="mt-3 text-xl text-[#6B7280]">{classification}</p>
-            <div className="mt-4 flex flex-wrap gap-2">
-              {tags.map((tag) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
+    <section className="rounded-[28px] bg-[#F8F9FC] px-6 py-5">
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[linear-gradient(180deg,#22C55E_0%,#16A34A_100%)] text-white shadow-sm">
+              <FileSpreadsheet aria-hidden="true" className="h-7 w-7" />
+            </span>
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-4xl font-bold tracking-normal text-[#111827]">{datasetName}</h2>
+                <Badge variant={statusLabel === "Ready to use" ? "success" : "info"}>{statusLabel}</Badge>
+              </div>
+              <p className="mt-3 text-xl text-[#6B7280]">{classification}</p>
             </div>
           </div>
-        </div>
-        <div className="flex flex-col gap-4 rounded-2xl border border-[#EEF2F7] bg-[#FAFBFC] p-5">
-          <div>
-            <p className="text-sm font-medium text-[#6B7280]">Last updated</p>
-            <p className="mt-2 text-2xl font-semibold text-[#111827]">{updatedAt}</p>
+
+          <div className="flex flex-wrap items-center gap-4 text-sm text-[#6B7280] xl:justify-end">
+            <span>
+              Last updated <span className="font-semibold text-[#111827]">{updatedAt}</span>
+            </span>
+            <Badge
+              variant={overviewStatus === "ready" ? "success" : overviewStatus === "failed" ? "warning" : "info"}
+              className="rounded-full px-3 py-1 text-sm"
+            >
+              {overviewStatus === "ready" ? "Overview ready" : overviewStatus === "failed" ? "Needs retry" : "Preparing overview"}
+            </Badge>
           </div>
         </div>
-      </CardContent>
-    </Card>
+
+        <div className="flex flex-wrap gap-2">
+          {tags.map((tag) => (
+            <Badge key={tag} variant="secondary">
+              {tag}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </section>
   );
 }
 
@@ -383,8 +445,8 @@ function AiUnderstandingCard(args: {
 }) {
   const { summaryText, confidence, onOpenCopilot } = args;
   return (
-    <Card>
-      <CardHeader>
+    <Card className="min-h-[420px]">
+      <CardHeader className="p-5 pb-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#F3F1FF] text-[#6E5BFF]">
@@ -398,8 +460,8 @@ function AiUnderstandingCard(args: {
           <Badge variant="success">AI Confidence {confidence}</Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-5">
-        <p className="max-w-3xl text-base leading-8 text-[#374151]">{summaryText}</p>
+      <CardContent className="space-y-5 p-5 pt-0">
+        <p className="max-w-3xl text-base leading-8 text-[#374151] line-clamp-4">{summaryText}</p>
         <div className="flex flex-wrap gap-3">
           <Button variant="secondary" type="button" onClick={onOpenCopilot}>
             Refine with Copilot
@@ -425,42 +487,109 @@ function DatasetSummaryCard({
     language: string;
     qualityScore: string;
     createdAt: string;
-    sourceLabel: string;
-    tableName: string;
   };
 }) {
+  const facts = [
+    {
+      label: "Rows",
+      value: formatSummaryRows(context.rows),
+      icon: <TableProperties aria-hidden="true" className="h-4 w-4" />,
+      iconClassName: "bg-[#EEF2FF] text-[#5F4CF0]",
+    },
+    {
+      label: "Columns",
+      value: context.columns,
+      icon: <Database aria-hidden="true" className="h-4 w-4" />,
+      iconClassName: "bg-[#ECFDF3] text-[#16A34A]",
+    },
+    {
+      label: "Size",
+      value: context.size,
+      icon: <FileSpreadsheet aria-hidden="true" className="h-4 w-4" />,
+      iconClassName: "bg-[#FFF7ED] text-[#EA580C]",
+    },
+    {
+      label: "Language",
+      value: formatSummaryLanguage(context.language),
+      icon: <Languages aria-hidden="true" className="h-4 w-4" />,
+      iconClassName: "bg-[#F5F3FF] text-[#7C3AED]",
+    },
+    {
+      label: "Quality Score",
+      value: context.qualityScore,
+      icon: <ShieldCheck aria-hidden="true" className="h-4 w-4" />,
+      iconClassName: "bg-[#ECFEFF] text-[#0891B2]",
+    },
+    {
+      label: "Created",
+      value: formatSummaryDate(context.createdAt),
+      icon: <Globe2 aria-hidden="true" className="h-4 w-4" />,
+      iconClassName: "bg-[#FEF2F2] text-[#DC2626]",
+    },
+  ];
+
   return (
-    <Card>
-      <CardHeader>
+    <Card className="overflow-hidden">
+      <CardHeader className="p-5 pb-4">
         <CardTitle>Dataset Summary</CardTitle>
         <CardDescription>Quick factual context before deeper analysis.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <SummaryFact icon={<TableProperties aria-hidden="true" className="h-4 w-4" />} label="Rows" value={context.rows} />
-          <SummaryFact icon={<Database aria-hidden="true" className="h-4 w-4" />} label="Columns" value={context.columns} />
-          <SummaryFact icon={<FileSpreadsheet aria-hidden="true" className="h-4 w-4" />} label="Size" value={context.size} />
-          <SummaryFact icon={<Sparkles aria-hidden="true" className="h-4 w-4" />} label="Language" value={context.language} />
-          <SummaryFact icon={<ShieldCheck aria-hidden="true" className="h-4 w-4" />} label="Quality Score" value={context.qualityScore} />
-          <SummaryFact icon={<RefreshCw aria-hidden="true" className="h-4 w-4" />} label="Created" value={context.createdAt} />
-        </div>
-        <div className="grid gap-4 border-t border-[#EEF2F7] pt-5 md:grid-cols-2">
-          <InfoLine label="Source" value={context.sourceLabel} />
-          <InfoLine label="Table" value={context.tableName} />
+      <CardContent className="p-5 pt-0">
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          {facts.map((fact) => (
+            <SummaryFact
+              key={fact.label}
+              icon={fact.icon}
+              iconClassName={fact.iconClassName}
+              label={fact.label}
+              value={fact.value}
+            />
+          ))}
         </div>
       </CardContent>
     </Card>
   );
 }
 
-function SummaryFact({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function SummaryFact({
+  icon,
+  iconClassName,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  iconClassName: string;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="rounded-2xl border border-[#EEF2F7] bg-[#FAFBFC] px-4 py-4">
-      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-[#6E5BFF] shadow-sm">{icon}</span>
-      <p className="mt-3 text-3xl font-bold text-[#111827]">{value}</p>
-      <p className="mt-1 text-sm text-[#6B7280]">{label}</p>
+    <div className="min-h-[132px] min-w-0 rounded-2xl border border-[#EEF2F7] bg-[#FAFBFC] p-4">
+      <span className={`flex h-10 w-10 items-center justify-center rounded-xl shadow-sm ${iconClassName}`}>{icon}</span>
+      <p className="mt-4 whitespace-nowrap text-[16px] font-bold leading-none text-[#111827]" title={value}>
+        {value}
+      </p>
+      <p className="mt-2 text-sm text-[#6B7280]">{label}</p>
     </div>
   );
+}
+
+function formatSummaryRows(value: string): string {
+  if (!value || value === "-") return value;
+  const numeric = Number(value.replace(/[^\d]/g, ""));
+  if (!Number.isFinite(numeric) || numeric <= 0) return value;
+  if (numeric >= 1_000_000) return `${(numeric / 1_000_000).toFixed(1)}M`;
+  if (numeric >= 100_000) return `${(numeric / 1_000).toFixed(1)}K`;
+  return value;
+}
+
+function formatSummaryDate(value: string): string {
+  if (!value || value === "-") return value;
+  return value.split(",")[0]?.trim() || value;
+}
+
+function formatSummaryLanguage(value: string): string {
+  if (!value || value === "-") return value;
+  return value.length > 12 ? value.slice(0, 12) : value;
 }
 
 function BusinessDescriptionCard(args: {
@@ -643,4 +772,27 @@ function InfoLine({ label, value }: { label: string; value?: string | null }) {
       <p className="mt-1 text-sm font-semibold text-[#111827] break-words">{value || "-"}</p>
     </div>
   );
+}
+
+function TabEmptyState({ title, description }: { title: string; description: string }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+    </Card>
+  );
+}
+
+function getOverviewTab(value: string | null): OverviewTab {
+  switch (value) {
+    case "data":
+    case "schema":
+    case "insights":
+    case "lineage":
+      return value;
+    default:
+      return "overview";
+  }
 }

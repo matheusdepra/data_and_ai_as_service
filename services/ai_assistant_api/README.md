@@ -72,6 +72,8 @@ Configuration uses Pydantic Settings with the `CHAT_` environment prefix.
 | `CHAT_VERTEX_MODEL_NAME` | `gemini-1.5-flash` | Gemini model name. |
 | `CHAT_BIGQUERY_MAX_BYTES_BILLED` | unset | Optional BigQuery cost guardrail. |
 | `CHAT_MOCK_TENANT_ID` | `dev-tenant` | Local mock tenant. Replace auth before prod. |
+| `CHAT_INGESTION_API_BASE_URL` | unset | Base URL used to fetch trusted dataset overview context from `ingestion_api`. |
+| `CHAT_INGESTION_API_TIMEOUT_SECONDS` | `15` | Timeout for context requests to `ingestion_api`. |
 
 TODO before production deployment:
 

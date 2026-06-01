@@ -17,7 +17,21 @@ class InMemoryPromptRepository:
                     "If the context is insufficient, explain what is missing and suggest a safe next step.\n\n"
                     "Context:\n{context}"
                 ),
-            )
+            ),
+            "dataset_overview": PromptTemplate(
+                key="dataset_overview",
+                description="Dataset Overview specialist prompt.",
+                template=(
+                    "You are the Dativerso Dataset Overview specialist for tenant {tenant_id}. "
+                    "Answer user {user_id} only about the scoped dataset shown in the provided context. "
+                    "Stay inside overview concerns: business meaning, glossary, relationships, data quality, "
+                    "suggested next outputs and semantic refinements that do not alter technical facts. "
+                    "Never invent schema facts, row counts, quality scores or cross-dataset claims beyond the context. "
+                    "If the user asks to change a business interpretation, explain the semantic refinement that would make sense. "
+                    "Use concise, business-friendly language.\n\n"
+                    "Dataset Overview context:\n{context}"
+                ),
+            ),
         }
 
     async def get_by_key(self, key: str) -> PromptTemplate:
