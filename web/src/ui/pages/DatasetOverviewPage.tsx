@@ -33,10 +33,12 @@ import type { OverviewCopilotMessage } from "@/features/overview/types";
 import {
   getIngestionDetail,
   getIngestionOverview,
+  getIngestionOverviewSemantic,
   runIngestionOverview,
   sendOverviewCopilotMessage,
   type IngestionDetail,
   type IngestionOverviewResponse,
+  type IngestionOverviewSemantic,
 } from "../lib/api";
 import { getJwt } from "../lib/storage";
 
@@ -71,10 +73,16 @@ export function DatasetOverviewPage() {
 
         const nextDetail = detailRes.status === "fulfilled" ? detailRes.value : null;
         const nextOverview = overviewRes.status === "fulfilled" ? overviewRes.value : null;
+        const semanticRes =
+          nextOverview?.status === "ready"
+            ? await Promise.allSettled([getIngestionOverviewSemantic({ jwt, ingestionId: normalizedIngestionId })])
+            : null;
+        const nextSemantic =
+          semanticRes?.[0]?.status === "fulfilled" ? semanticRes[0].value.semantic : undefined;
 
         if (!cancelled) {
           setDetail(nextDetail);
-          setOverview(nextOverview);
+          setOverview(mergeOverviewSemantic(nextOverview, nextSemantic));
           setErr(detailRes.status === "rejected" ? String(detailRes.reason) : "");
         }
 
@@ -191,6 +199,10 @@ export function DatasetOverviewPage() {
         ingestionId: normalizedIngestionId,
         message: cleanQuestion,
       });
+      const semantic = extractSemanticUpdate(response.metadata, normalizedIngestionId);
+      if (semantic) {
+        setOverview((current) => mergeOverviewSemantic(current, semantic));
+      }
       const reply = formatOverviewCopilotReply({ context: overviewContext, question: cleanQuestion, response });
       setCopilotMessages((prev) => [...prev, reply]);
     } catch (error) {
@@ -283,7 +295,7 @@ export function DatasetOverviewPage() {
 
               {activeTab === "insights" ? (
                 <>
-                  <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                  <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
                     <BusinessDescriptionCard
                       businessArea={overviewContext.businessArea}
                       domain={overviewContext.domain}
@@ -347,6 +359,50 @@ type SchemaRow = {
   cast_success_rate?: number | null;
   warnings?: string[];
 };
+
+function mergeOverviewSemantic(
+  response: IngestionOverviewResponse | null,
+  semantic?: IngestionOverviewSemantic,
+): IngestionOverviewResponse | null {
+  if (!response?.overview || !semantic || Object.keys(semantic).length === 0) return response;
+
+  const overview = { ...response.overview } as Record<string, unknown>;
+  Object.entries(semantic).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    const current = overview[key];
+    overview[key] = isPlainObject(current) && isPlainObject(value) ? { ...current, ...value } : value;
+  });
+
+  return {
+    ...response,
+    overview: overview as NonNullable<IngestionOverviewResponse["overview"]>,
+  };
+}
+
+function extractSemanticUpdate(
+  metadata: Record<string, unknown>,
+  ingestionId: string,
+): IngestionOverviewSemantic | undefined {
+  const actions = metadata.client_actions;
+  if (Array.isArray(actions)) {
+    const action = actions.find((item) => {
+      if (!isPlainObject(item)) return false;
+      return item.type === "merge_overview_semantic" && item.ingestion_id === ingestionId;
+    });
+    if (isPlainObject(action) && isPlainObject(action.semantic)) {
+      return action.semantic as IngestionOverviewSemantic;
+    }
+  }
+
+  if (metadata.tool === "apply_semantic_patch" && metadata.persisted === true && isPlainObject(metadata.semantic)) {
+    return metadata.semantic as IngestionOverviewSemantic;
+  }
+  return undefined;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
 type OverviewTab = "overview" | "data" | "schema" | "insights" | "lineage";
 
@@ -621,16 +677,19 @@ function BusinessDescriptionCard(args: {
 }
 
 function TermsCard({ terms, onOpenCopilot }: { terms: string[]; onOpenCopilot: () => void }) {
+  const visibleTerms = terms.slice(0, 6);
+  const remainingTerms = Math.max(terms.length - visibleTerms.length, 0);
+
   return (
-    <Card>
-      <CardHeader>
+    <Card className="self-start">
+      <CardHeader className="pb-4">
         <CardTitle>Key Business Terms</CardTitle>
         <CardDescription>Automatic glossary generation for non-technical users.</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="flex flex-wrap gap-2">
+      <CardContent className="space-y-5">
+        <div className="flex min-h-[68px] flex-wrap content-start gap-2">
           {terms.length > 0 ? (
-            terms.map((term) => (
+            visibleTerms.map((term) => (
               <Badge key={term} variant="success">
                 {term}
               </Badge>
@@ -638,8 +697,15 @@ function TermsCard({ terms, onOpenCopilot }: { terms: string[]; onOpenCopilot: (
           ) : (
             <p className="text-sm text-[#6B7280]">No business terms inferred yet.</p>
           )}
+          {remainingTerms > 0 ? <Badge variant="outline">+{remainingTerms} more</Badge> : null}
         </div>
-        <Button variant="ghost" type="button" onClick={onOpenCopilot}>
+        <div className="rounded-2xl border border-[#EEF2F7] bg-[#FAFBFC] px-4 py-3">
+          <p className="text-xs uppercase tracking-wide text-[#6B7280]">Glossary coverage</p>
+          <p className="mt-1 text-sm font-semibold text-[#111827]">
+            {terms.length > 0 ? `${terms.length} terms ready for business review` : "Waiting for inferred terms"}
+          </p>
+        </div>
+        <Button variant="ghost" className="px-0" type="button" onClick={onOpenCopilot}>
           View all terms
           <ArrowRight aria-hidden="true" />
         </Button>
@@ -703,13 +769,23 @@ type QualityInfo = NonNullable<IngestionOverviewResponse["overview"]>["quality"]
 function QualityCard({ quality }: { quality?: QualityInfo | null }) {
   const metrics = quality
     ? [
-        { label: "Completeness", value: `${Math.round(quality.completeness * 100)}%` },
-        { label: "Uniqueness", value: `${Math.round(quality.uniqueness * 100)}%` },
-        { label: "Validity", value: `${Math.round(quality.validity * 100)}%` },
-        { label: "Consistency", value: `${Math.round(quality.consistency * 100)}%` },
-        { label: "Timeliness", value: `${Math.round(quality.timeliness * 100)}%` },
+        buildQualityMetric("Completeness", quality.completeness),
+        buildQualityMetric("Uniqueness", quality.uniqueness),
+        buildQualityMetric("Validity", quality.validity),
+        buildQualityMetric("Consistency", quality.consistency),
+        buildQualityMetric("Timeliness", quality.timeliness),
       ]
     : [];
+  const overallScore = quality ? Math.round(quality.overall_score * 100) : null;
+  const qualityLevel = getQualityLevel(overallScore);
+  const weakestMetric = metrics.reduce<QualityMetric | null>(
+    (current, metric) => (!current || metric.score < current.score ? metric : current),
+    null,
+  );
+  const strongestMetric = metrics.reduce<QualityMetric | null>(
+    (current, metric) => (!current || metric.score > current.score ? metric : current),
+    null,
+  );
 
   return (
     <Card>
@@ -726,28 +802,168 @@ function QualityCard({ quality }: { quality?: QualityInfo | null }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="grid gap-4 xl:grid-cols-[220px_minmax(0,1fr)]">
+        <div className="grid gap-4 xl:grid-cols-[260px_minmax(0,1fr)]">
           <div className="rounded-2xl border border-[#EEF2F7] bg-[#FAFBFC] p-5">
-            <div className="flex items-center gap-4">
-              <div className="flex h-20 w-20 items-center justify-center rounded-full border-[8px] border-[#DCFCE7] text-2xl font-bold text-[#166534]">
-                {quality ? Math.round(quality.overall_score * 100) : "-"}
+            <div className="flex items-center gap-4 xl:block">
+              <div
+                className={`flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-[8px] text-2xl font-bold xl:h-24 xl:w-24 ${qualityLevel.ringClass} ${qualityLevel.textClass}`}
+              >
+                {overallScore ?? "-"}
               </div>
-              <div>
+              <div className="xl:mt-4">
                 <p className="text-sm font-medium text-[#6B7280]">Overall Score</p>
-                <p className="mt-1 text-3xl font-bold text-[#111827]">{quality ? `${Math.round(quality.overall_score * 100)}%` : "-"}</p>
-                <p className="mt-1 text-sm text-[#16A34A]">High Quality</p>
+                <p className="mt-1 text-3xl font-bold text-[#111827]">{overallScore !== null ? `${overallScore}%` : "-"}</p>
+                <Badge className="mt-3" variant={qualityLevel.badgeVariant}>
+                  {qualityLevel.label}
+                </Badge>
               </div>
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {metrics.map((metric) => (
-              <InfoLine key={metric.label} label={metric.label} value={metric.value} />
+              <QualityMetricCard key={metric.label} metric={metric} />
             ))}
           </div>
         </div>
+        {quality ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="rounded-2xl border border-[#EEF2F7] bg-[#FAFBFC] px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-[#6B7280]">Strongest signal</p>
+              <p className="mt-1 text-sm font-semibold text-[#111827]">
+                {strongestMetric ? `${strongestMetric.label} at ${strongestMetric.value}` : "-"}
+              </p>
+            </div>
+            <div className="rounded-2xl border border-[#EEF2F7] bg-[#FAFBFC] px-4 py-3">
+              <p className="text-xs uppercase tracking-wide text-[#6B7280]">Needs attention</p>
+              <p className="mt-1 text-sm font-semibold text-[#111827]">
+                {weakestMetric ? `${weakestMetric.label} is the main limiter at ${weakestMetric.value}` : "-"}
+              </p>
+            </div>
+          </div>
+        ) : null}
       </CardContent>
     </Card>
   );
+}
+
+type QualityMetric = {
+  label: string;
+  value: string;
+  score: number;
+  description: string;
+};
+
+function buildQualityMetric(label: string, score: number): QualityMetric {
+  const percentage = Math.round(score * 100);
+  return {
+    label,
+    value: `${percentage}%`,
+    score: percentage,
+    description: getQualityMetricDescription(label, percentage),
+  };
+}
+
+function QualityMetricCard({ metric }: { metric: QualityMetric }) {
+  const level = getQualityLevel(metric.score);
+
+  return (
+    <div className="rounded-2xl border border-[#E5E7EB] bg-white px-4 py-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs uppercase tracking-wide text-[#6B7280]">{metric.label}</p>
+          <p className="mt-1 text-xl font-bold text-[#111827]">{metric.value}</p>
+        </div>
+        <Badge variant={level.badgeVariant}>{level.shortLabel}</Badge>
+      </div>
+      <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[#EEF2F7]">
+        <div className={`h-full rounded-full ${level.barClass} ${getQualityWidthClass(metric.score)}`} />
+      </div>
+      <p className="mt-3 text-xs leading-5 text-[#6B7280]">{metric.description}</p>
+    </div>
+  );
+}
+
+type QualityBadgeVariant = "success" | "warning" | "destructive" | "info";
+
+function getQualityLevel(score: number | null): {
+  label: string;
+  shortLabel: string;
+  badgeVariant: QualityBadgeVariant;
+  ringClass: string;
+  textClass: string;
+  barClass: string;
+} {
+  if (score === null) {
+    return {
+      label: "Not measured",
+      shortLabel: "N/A",
+      badgeVariant: "info",
+      ringClass: "border-[#DBEAFE]",
+      textClass: "text-blue-700",
+      barClass: "bg-[#3B82F6]",
+    };
+  }
+
+  if (score >= 90) {
+    return {
+      label: "High quality",
+      shortLabel: "Strong",
+      badgeVariant: "success",
+      ringClass: "border-[#DCFCE7]",
+      textClass: "text-[#166534]",
+      barClass: "bg-[#22C55E]",
+    };
+  }
+
+  if (score >= 75) {
+    return {
+      label: "Usable with review",
+      shortLabel: "Review",
+      badgeVariant: "warning",
+      ringClass: "border-[#FEF3C7]",
+      textClass: "text-amber-700",
+      barClass: "bg-[#F59E0B]",
+    };
+  }
+
+  return {
+    label: "Needs attention",
+    shortLabel: "Low",
+    badgeVariant: "destructive",
+    ringClass: "border-[#FEE2E2]",
+    textClass: "text-red-700",
+    barClass: "bg-[#EF4444]",
+  };
+}
+
+function getQualityWidthClass(score: number): string {
+  if (score >= 95) return "w-full";
+  if (score >= 85) return "w-11/12";
+  if (score >= 75) return "w-10/12";
+  if (score >= 65) return "w-8/12";
+  if (score >= 50) return "w-6/12";
+  if (score >= 35) return "w-5/12";
+  if (score >= 20) return "w-3/12";
+  return "w-1/12";
+}
+
+function getQualityMetricDescription(label: string, score: number): string {
+  const prefix = score >= 90 ? "Reliable" : score >= 75 ? "Usable" : "Review needed";
+
+  switch (label) {
+    case "Completeness":
+      return `${prefix}: shows how many expected values are present.`;
+    case "Uniqueness":
+      return `${prefix}: highlights possible duplicates in key records.`;
+    case "Validity":
+      return `${prefix}: checks if values match the inferred formats.`;
+    case "Consistency":
+      return `${prefix}: compares values against repeated patterns.`;
+    case "Timeliness":
+      return `${prefix}: estimates whether the dataset looks current.`;
+    default:
+      return `${prefix}: quality signal generated from this dataset.`;
+  }
 }
 
 function humanize(value?: string | null): string {

@@ -170,6 +170,18 @@ export type IngestionOverviewResponse = {
   } | null;
 };
 
+export type IngestionOverviewSemantic = Partial<NonNullable<IngestionOverviewResponse["overview"]>>;
+
+export type IngestionOverviewSemanticResponse = {
+  tenant_id: string;
+  ingestion_id: string;
+  base_version?: string | null;
+  updated_at?: string | null;
+  updated_by?: Record<string, unknown> | null;
+  reason?: string | null;
+  semantic?: IngestionOverviewSemantic;
+};
+
 export type OverviewChatResponse = {
   session_id: string;
   answer: string;
@@ -280,6 +292,17 @@ export async function getIngestionOverview(args: { jwt: string; ingestionId: str
     headers: authHeaders(args.jwt),
   });
   return json<IngestionOverviewResponse>(res);
+}
+
+export async function getIngestionOverviewSemantic(args: {
+  jwt: string;
+  ingestionId: string;
+}): Promise<IngestionOverviewSemanticResponse> {
+  const res = await fetch(`${baseUrl()}/v1/ingestions/${encodeURIComponent(args.ingestionId)}/overview/semantic`, {
+    method: "GET",
+    headers: authHeaders(args.jwt),
+  });
+  return json<IngestionOverviewSemanticResponse>(res);
 }
 
 export async function runIngestionOverview(args: { jwt: string; ingestionId: string }): Promise<{ ok: boolean; status: string }> {

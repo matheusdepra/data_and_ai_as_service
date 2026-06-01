@@ -15,7 +15,7 @@ class MockLLMProvider:
 
         if "strict classifier for semantic metadata edits" in system_text.lower():
             return LLMResponse(
-                content=_semantic_patch_json_response(user_text),
+                content=_semantic_patch_json_response(user_text, system_text),
                 model="mock-llm",
                 metadata={"provider": "mock"},
             )
@@ -44,7 +44,7 @@ class MockLLMProvider:
         )
 
 
-def _semantic_patch_json_response(user_text: str) -> str:
+def _semantic_patch_json_response(user_text: str, system_text: str) -> str:
     lower = user_text.casefold()
     if "oi" == lower.strip() or "hello" == lower.strip():
         return json.dumps({"should_patch": False, "reason": "greeting", "patch": {}}, ensure_ascii=False)
@@ -53,7 +53,55 @@ def _semantic_patch_json_response(user_text: str) -> str:
             {
                 "should_patch": True,
                 "reason": "The user corrected the business domain from CRM to Marketing.",
+                "intent_type": "replace",
+                "target_field": "business_description.domain",
+                "proposal_summary": "Atualizar o domínio para Marketing",
+                "confidence": 0.9,
                 "patch": {"business_description": {"domain": "Marketing"}},
+            },
+            ensure_ascii=False,
+        )
+    if "troca o ai understanding para" in lower or "troca o ai summary para" in lower:
+        replacement = user_text.split("para", 1)[1].strip() if "para" in lower else user_text
+        return json.dumps(
+            {
+                "should_patch": True,
+                "reason": "The user provided the desired AI Summary text.",
+                "intent_type": "replace",
+                "target_field": "ai_understanding.summary",
+                "proposal_summary": f"Atualizar o AI Summary para refletir: {replacement}",
+                "confidence": 0.93,
+                "patch": {"ai_understanding": {"summary": replacement}},
+            },
+            ensure_ascii=False,
+        )
+    if "resumo" in lower or "ai summary" in lower or "ai understanding" in lower:
+        return json.dumps(
+            {
+                "should_patch": True,
+                "reason": "The user asked to rewrite the AI Summary.",
+                "intent_type": "rewrite",
+                "target_field": "ai_understanding.summary",
+                "proposal_summary": "Atualizar o AI Summary para uma descrição mais executiva.",
+                "confidence": 0.76,
+                "patch": {
+                    "ai_understanding": {
+                        "summary": "Resumo executivo para acompanhamento de clientes, vendas e faturamento."
+                    }
+                },
+            },
+            ensure_ascii=False,
+        )
+    if "tags" in lower and all(token in system_text for token in ("Clientes", "Cadastro", "OLIST")):
+        return json.dumps(
+            {
+                "should_patch": True,
+                "reason": "The recent conversation already proposed the target tag list.",
+                "intent_type": "set_list",
+                "target_field": "dataset_header.tags",
+                "proposal_summary": "Atualizar as tags para Clientes, Cadastro e OLIST",
+                "confidence": 0.81,
+                "patch": {"dataset_header": {"tags": ["Clientes", "Cadastro", "OLIST"]}},
             },
             ensure_ascii=False,
         )

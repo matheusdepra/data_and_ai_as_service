@@ -45,6 +45,36 @@ Alinhar a tela de Dataset Overview ao spec de `docs/design/dataset-overview/05.d
 - [x] Melhorar renderizacao das respostas do Dataset Copilot com markdown basico e tabelas.
 - [x] Esconder prompts/contexto auxiliar do drawer quando a conversa tiver mensagens do usuario.
 - [x] Enviar mensagem no drawer com Cmd/Ctrl + Enter.
+- [x] Corrigir parsing de `typical_usage` no Dataset Copilot para nao persistir o texto da instrucao do usuario como valor.
+- [x] Cobrir o caso "usage para CRM, segmentação e logistica" com teste unitario.
+- [x] Rodar validacoes disponiveis do `ai_assistant_api` nesta sessao.
+- [x] Fazer o backend do chat enviar uma acao/estado semantico aplicado para o frontend.
+- [x] Fazer a pagina de Dataset Overview mesclar `/overview/semantic` no carregamento.
+- [x] Atualizar o overview em memoria apos `apply_semantic_patch`, sem reload da pagina.
+- [x] Rodar build do frontend apos a integracao.
+- [x] Refinar parsing de listas semanticas para remover frases de comando como "me ajuda a formatar".
+- [x] Reconhecer confirmacoes PT-BR como "pode seguir" e "aplicar" no fluxo de semantic patch.
+- [x] Detectar idioma principal do usuario entre portugues, ingles e espanhol no Dataset Copilot.
+- [x] Localizar instrucoes de confirmacao do semantic patch conforme idioma detectado.
+- [x] Cobrir confirmacoes `aplicar`, `salvar` e espanhol com testes unitarios.
+- [x] Expandir gate semantico barato para resumo/descricao/estilo antes de chamar IA.
+- [x] Cobrir fallback de IA para `ai_understanding.summary`.
+- [x] Cobrir que perguntas comuns nao chamam IA de extracao semantica.
+- [x] Impedir que respostas de preview/aplicacao exponham JSON bruto.
+- [x] Garantir fluxo rapido de AI Summary: primeira interacao sugere, segunda aplica.
+- [x] Aceitar confirmacoes imperativas curtas como `aplica` e `salva`.
+- [x] Introduzir contrato interno estruturado para proposta semantica no `ToolService`.
+- [x] Fazer preview/apply/cancel usarem resposta guiada pelo backend sem depender do LLM para a mensagem final.
+- [x] Fazer fallback de IA considerar historico recente para refinamentos semanticos.
+- [x] Reorganizar validacao e testes por comportamento dos campos semanticos.
+- [x] Corrigir `NameError` em producao no fluxo novo (`_extract_not_x_but_y` e `_extract_json_object`).
+- [x] Reconhecer pedidos de `AI Summary` usando aliases como `sumario de IA`.
+- [x] Tratar perguntas de esclarecimento sobre preview pendente sem sobrescrever o patch proposto.
+- [x] Responder com mensagem clara quando o usuario pedir edicao de campo fora do allowlist, como o nome do dataset.
+- [x] Evitar `500` quando o Vertex responder sem `response.text` em perguntas normais como qualidade de dados.
+- [x] Priorizar respostas de entendimento quando a pergunta sobre `Key Business Terms` pede significado, em vez de abrir fluxo de edicao semantica.
+- [x] Redimensionar a aba `Insights` para reduzir vazio em `Key Business Terms`.
+- [x] Enriquecer `Data Quality` com leitura mais acionavel dos indicadores.
 
 ## Validacao
 - `npm run build` em `web/`: passou.
@@ -59,5 +89,21 @@ Alinhar a tela de Dataset Overview ao spec de `docs/design/dataset-overview/05.d
 - `npm run build` em `web/` apos melhorar renderizacao do Dataset Copilot: passou.
 - Validacao visual em browser: nao executada porque o navegador in-app/Browser nao estava exposto nas ferramentas desta sessao. A checagem ficou restrita a inspecao de codigo, referencia visual do PNG e build de producao.
 - `PYTHONPYCACHEPREFIX=/private/tmp/dativerso-ai-assistant-pycache python3 -m py_compile $(find services/ai_assistant_api/app services/ai_assistant_api/tests -name '*.py' | sort)`: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/`: passou.
+- `pytest tests/unit/test_tool_service.py` e `python3 -m pytest tests/unit/test_tool_service.py`: nao executados porque `pytest` nao esta instalado no ambiente.
+- Check manual por `python3 -c` importando `tool_service`: nao executado porque dependencias runtime como `pydantic` nao estao instaladas no ambiente.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos incluir `client_actions`: passou.
+- `npm run build` em `web/` apos mesclar semantic overlay e aplicar update em memoria pelo chat: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos refinar parsing de listas e confirmacoes PT-BR: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos idioma PT/EN/ES e confirmacoes localizadas: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos gate hibrido semantico + IA para summary: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos fluxo rapido de AI Summary e bloqueio de JSON bruto: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos contrato estruturado, resposta direta do backend e testes reorganizados: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos restaurar os helpers `_extract_not_x_but_y` e `_extract_json_object`: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos reforcar aliases de `AI Summary` e esclarecimento de preview pendente: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos tratar pedidos fora do allowlist semantico como `nome do dataset`: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos endurecer o provider do Vertex para respostas sem `response.text`: passou.
+- `python3 -m compileall app tests` em `services/ai_assistant_api/` apos desviar perguntas sobre significado de `Key Business Terms` para o chat normal: passou.
 - `terraform -chdir=infra/terraform fmt cloudrun.tf`: passou.
 - `git diff --check`: passou.
+- `npm run build` em `web/` apos redimensionar `Insights` e enriquecer `Data Quality`: passou.

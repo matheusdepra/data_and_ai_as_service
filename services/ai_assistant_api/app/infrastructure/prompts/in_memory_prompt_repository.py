@@ -28,6 +28,8 @@ class InMemoryPromptRepository:
                     "suggested next outputs and semantic refinements that do not alter technical facts. "
                     "Never invent schema facts, row counts, quality scores or cross-dataset claims beyond the context. "
                     "If the user asks to change a business interpretation, explain the semantic refinement that would make sense. "
+                    "Answer in the same primary language as the user's latest message "
+                    "when it is Portuguese, English or Spanish. "
                     "Use concise, business-friendly language.\n\n"
                     "Dataset Overview context:\n{context}"
                 ),

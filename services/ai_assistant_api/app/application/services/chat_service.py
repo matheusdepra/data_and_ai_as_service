@@ -46,6 +46,7 @@ class ChatService:
             user=user,
             limit=self._history_limit,
         )
+        user_message = ChatMessage(role=ChatRole.USER, content=message)
         tool_response = await self._tool_service.maybe_handle_dataset_overview_turn(
             user=user,
             message=message,
@@ -53,6 +54,32 @@ class ChatService:
             request_headers=request_headers,
             history=history,
         )
+        if tool_response is not None and tool_response.direct_response and tool_response.response_text is not None:
+            assistant_message = ChatMessage(
+                role=ChatRole.ASSISTANT,
+                content=tool_response.response_text,
+                metadata={
+                    "model": "tool-service",
+                    **tool_response.metadata,
+                },
+            )
+            await self._history_repository.append_messages(
+                session_id=session_id,
+                user=user,
+                messages=[user_message, assistant_message],
+            )
+            latency_ms = int((time.perf_counter() - started) * 1000)
+            return ChatResponse(
+                session_id=session_id,
+                answer=tool_response.response_text,
+                used_prompt_key=prompt_key,
+                used_context_sources=tool_response.sources,
+                metadata={
+                    "model": "tool-service",
+                    "latency_ms": latency_ms,
+                    **tool_response.metadata,
+                },
+            )
 
         retrieved_context = await self._context_service.retrieve_context(
             user=user,
@@ -68,7 +95,6 @@ class ChatService:
                 "context": retrieved_context.content,
             },
         )
-        user_message = ChatMessage(role=ChatRole.USER, content=message)
         messages = [ChatMessage(role=ChatRole.SYSTEM, content=system_prompt), *history, user_message]
         if tool_response is not None:
             messages.extend(self._tool_messages(tool_response))
@@ -107,8 +133,10 @@ class ChatService:
                 role=ChatRole.SYSTEM,
                 content=(
                     "A tool was executed for this turn. Use the tool result as trusted internal evidence. "
-                    "Do not expose raw JSON unless the user explicitly asks for it. "
-                    "If the tool produced a preview, ask for confirmation clearly. "
+                    "Never expose raw JSON, tool schemas, metadata keys, or code fences for semantic previews. "
+                    "If the tool result includes response_language, answer in that language. "
+                    "If the tool produced a preview, summarize the proposed field changes in plain language "
+                    "and always ask whether the user wants to apply/save them. "
                     "If the tool applied a semantic change, state that it was persisted and that technical facts were not changed."
                 ),
             ),

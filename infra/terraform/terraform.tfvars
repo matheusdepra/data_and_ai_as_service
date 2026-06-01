@@ -26,7 +26,7 @@ bronzeify_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/bron
 silverize_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/silverize:0.1.4"
 overviewify_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/overviewify:0.1.0"
 identity_api_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/identity-api:0.1.8"
-ai_assistant_api_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/ai-assistant-api:0.1.3"
+ai_assistant_api_image = "us-central1-docker.pkg.dev/daas-mvp-472103/dativerso-dev/ai-assistant-api:0.1.14"
 
 enable_api_gateway = true
 firebase_project_id = "daas-mvp-472103"
