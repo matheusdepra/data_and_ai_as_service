@@ -343,3 +343,35 @@ export async function sendOverviewCopilotMessage(args: {
   });
   return json<OverviewChatResponse>(res);
 }
+
+export async function sendDatasetCopilotMessage(args: {
+  jwt: string;
+  sessionId: string;
+  ingestionId: string;
+  message: string;
+}): Promise<OverviewChatResponse> {
+  const headers = authHeaders(args.jwt) as Record<string, string>;
+  const aiApiKey = (import.meta.env.VITE_AI_ASSISTANT_API_KEY as string | undefined)?.trim();
+  if (aiApiKey) {
+    headers["x-api-key"] = aiApiKey;
+  }
+  const res = await fetch(`${aiAssistantBaseUrl()}/api/v1/chat/messages`, {
+    method: "POST",
+    headers: {
+      ...headers,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      session_id: args.sessionId,
+      message: args.message,
+      agent_key: "dataset_copilot",
+      scope: {
+        screen: "dataset_copilot",
+        ingestion_id: args.ingestionId,
+      },
+      context: {},
+    }),
+  });
+  return json<OverviewChatResponse>(res);
+}
+

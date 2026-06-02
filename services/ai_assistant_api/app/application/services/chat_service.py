@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+import json
+import re
 import time
 
 from app.application.services.context_service import ContextService
@@ -99,14 +101,21 @@ class ChatService:
         if tool_response is not None:
             messages.extend(self._tool_messages(tool_response))
         llm_response = await self._llm_provider.generate(messages)
+        
+        answer_text, rich_meta = _extract_rich_metadata(llm_response.content)
+        
+        response_metadata = {
+            "model": llm_response.model,
+            **llm_response.metadata,
+            **(tool_response.metadata if tool_response is not None else {}),
+        }
+        if rich_meta:
+            response_metadata.update(rich_meta)
+
         assistant_message = ChatMessage(
             role=ChatRole.ASSISTANT,
-            content=llm_response.content,
-            metadata={
-                "model": llm_response.model,
-                **llm_response.metadata,
-                **(tool_response.metadata if tool_response is not None else {}),
-            },
+            content=answer_text,
+            metadata=response_metadata,
         )
         await self._history_repository.append_messages(
             session_id=session_id,
@@ -114,18 +123,18 @@ class ChatService:
             messages=[user_message, assistant_message],
         )
         latency_ms = int((time.perf_counter() - started) * 1000)
+        
         return ChatResponse(
             session_id=session_id,
-            answer=llm_response.content,
+            answer=answer_text,
             used_prompt_key=prompt_key,
             used_context_sources=retrieved_context.sources + (tool_response.sources if tool_response is not None else []),
             metadata={
-                "model": llm_response.model,
                 "latency_ms": latency_ms,
-                **llm_response.metadata,
-                **(tool_response.metadata if tool_response is not None else {}),
+                **response_metadata,
             },
         )
+
 
     def _tool_messages(self, result: ToolExecutionResult) -> list[ChatMessage]:
         return [
@@ -142,3 +151,27 @@ class ChatService:
             ),
             ChatMessage(role=ChatRole.TOOL, content=result.llm_context, metadata=result.metadata),
         ]
+
+
+def _extract_rich_metadata(content: str) -> tuple[str, dict[str, Any]]:
+    pattern = r"```json\s*(\{.*?\})\s*```"
+    matches = list(re.finditer(pattern, content, re.DOTALL))
+    for match in reversed(matches):
+        raw_json = match.group(1)
+        try:
+            parsed = json.loads(raw_json)
+            rich = None
+            if "rich_metadata" in parsed:
+                rich = parsed["rich_metadata"]
+            elif "kind" in parsed:
+                rich = parsed
+            
+            if isinstance(rich, dict) and "kind" in rich:
+                # Remove this specific code block from the content
+                cleaned_content = content[:match.start()].strip() + "\n\n" + content[match.end():].strip()
+                return cleaned_content.strip(), rich
+        except Exception:
+            continue
+            
+    return content, {}
+

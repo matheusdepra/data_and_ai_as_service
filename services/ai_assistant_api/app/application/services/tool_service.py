@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from app.domain.models.chat import ChatMessage, ChatRole, ChatScope, UserContext
+from app.domain.ports.bigquery_repository import BigQueryRepository
 from app.domain.ports.llm_provider import LLMProvider
 from app.infrastructure.clients.ingestion_api_client import IngestionApiClient
 
@@ -62,16 +63,23 @@ class SemanticResolution:
 
 
 class ToolService:
-    def __init__(self, ingestion_api: IngestionApiClient, llm_provider: LLMProvider) -> None:
+    def __init__(
+        self,
+        ingestion_api: IngestionApiClient,
+        llm_provider: LLMProvider,
+        bigquery_repository: BigQueryRepository | None = None,
+    ) -> None:
         self._ingestion_api = ingestion_api
         self._llm_provider = llm_provider
+        self._bigquery_repository = bigquery_repository
 
     def list_available_tools(self, *, prompt_key: str) -> list[ToolDescriptor]:
-        if prompt_key == "dataset_overview":
+        if prompt_key in {"dataset_overview", "dataset_copilot"}:
             return [
                 ToolDescriptor(name="get_overview_context", description="Retrieve trusted dataset overview context."),
                 ToolDescriptor(name="preview_semantic_patch", description="Preview an allowed semantic metadata change."),
                 ToolDescriptor(name="apply_semantic_patch", description="Persist a confirmed semantic metadata change."),
+                ToolDescriptor(name="run_overview_query", description="Run a read-only ad hoc query on the Silver table of this dataset."),
             ]
         return []
 
@@ -125,6 +133,14 @@ class ToolService:
                 message_text=resolution.clarification_message,
             )
         if resolution.proposal is None:
+            query_result = await self._maybe_run_exploratory_query(
+                ingestion_id=request_scope.ingestion_id,
+                message=message,
+                user=user,
+                request_headers=request_headers,
+            )
+            if query_result is not None:
+                return query_result
             return None
 
         preview = await self._preview_semantic_patch(
@@ -148,6 +164,125 @@ class ToolService:
         )
         preview_semantic = preview.get("semantic") if isinstance(preview.get("semantic"), dict) else {}
         return self._build_preview_result(pending_action=pending_action, semantic_preview=preview_semantic)
+
+    async def _maybe_run_exploratory_query(
+        self,
+        *,
+        ingestion_id: str,
+        message: str,
+        user: UserContext,
+        request_headers: Mapping[str, str],
+    ) -> ToolExecutionResult | None:
+        if self._bigquery_repository is None or self._llm_provider is None:
+            return None
+
+        # Fetch overview to get schema and details
+        overview = await asyncio.to_thread(
+            self._ingestion_api.get_json,
+            path=f"/v1/ingestions/{ingestion_id}/overview",
+            request_headers=request_headers,
+            allow_not_found=True,
+        )
+        if not isinstance(overview, dict):
+            return None
+        
+        overview_payload = overview.get("overview") if isinstance(overview, dict) else {}
+        overview_data = overview_payload if isinstance(overview_payload, dict) else {}
+
+        # Resolve table name from technical_summary or silver artifact
+        detail = await asyncio.to_thread(
+            self._ingestion_api.get_json,
+            path=f"/v1/ingestions/{ingestion_id}",
+            request_headers=request_headers,
+            allow_not_found=True,
+        )
+        bq_table = None
+        if isinstance(detail, dict):
+            ingestion = detail.get("ingestion") or {}
+            technical_summary = ingestion.get("technical_summary") or {}
+            bq_table = technical_summary.get("bq_table")
+        if not bq_table:
+            tech = overview_data.get("technical_summary") or {}
+            if isinstance(tech, dict):
+                bq_table = tech.get("bq_table")
+        if not bq_table:
+            return None
+
+        # Schema columns summary
+        schema_data = overview_data.get("schema") or {}
+        columns = schema_data.get("columns") or []
+        if not columns:
+            return None
+        schema_summary = ", ".join(f"{c['normalized_name']} ({c['inferred_type']})" for c in columns)
+
+        prompt = (
+            "You are a strict SQL query generator for Dativerso.\n"
+            "Given the dataset columns and the user's question, determine if the question requires querying the dataset's table.\n"
+            "If yes, return JSON only with shape:\n"
+            "{\"should_query\": true, \"sql\": \"SELECT ... FROM `<table_name>` ...\"}\n"
+            "If no, return JSON only with shape:\n"
+            "{\"should_query\": false}\n\n"
+            f"Table name: {bq_table}\n"
+            f"Columns and types: {schema_summary}\n"
+            f"User question: {message}"
+        )
+        
+        try:
+            llm_response = await self._llm_provider.generate([
+                ChatMessage(role=ChatRole.SYSTEM, content=prompt),
+                ChatMessage(role=ChatRole.USER, content=message)
+            ])
+            parsed = _extract_json_object(llm_response.content)
+            if not parsed or not bool(parsed.get("should_query")):
+                return None
+            
+            sql = parsed.get("sql")
+            if not isinstance(sql, str) or not sql.strip():
+                return None
+
+            if not _validate_sql_query(sql, bq_table, user.tenant_id):
+                return ToolExecutionResult(
+                    tool_name="run_overview_query",
+                    sources=["tool:run_overview_query"],
+                    llm_context="Error: SQL query validation failed. Make sure the query only references the allowed table and uses read-only operations.",
+                    metadata={"tool": "run_overview_query", "error": "validation_failed", "sql": sql},
+                    response_text="Desculpe, a consulta gerada para responder a sua pergunta não passou nas validações de segurança.",
+                    direct_response=True,
+                )
+
+            rows = await self._bigquery_repository.execute_query(
+                sql=sql,
+                user=user,
+                max_results=100,
+            )
+            
+            return ToolExecutionResult(
+                tool_name="run_overview_query",
+                sources=["tool:run_overview_query"],
+                llm_context=json.dumps({"status": "success", "results": rows}, ensure_ascii=False),
+                metadata={
+                    "tool": "run_overview_query",
+                    "sql": sql,
+                    "results_count": len(rows),
+                    "client_actions": [
+                        {
+                            "type": "display_tabular_data",
+                            "sql": sql,
+                            "rows": rows,
+                        }
+                    ]
+                },
+                direct_response=False,
+            )
+        except Exception as exc:
+            return ToolExecutionResult(
+                tool_name="run_overview_query",
+                sources=["tool:run_overview_query"],
+                llm_context=f"Error executing query: {str(exc)}",
+                metadata={"tool": "run_overview_query", "error": str(exc)},
+                response_text="Desculpe, ocorreu um erro ao executar a consulta no banco de dados.",
+                direct_response=True,
+            )
 
     async def _resolve_semantic_intent(
         self,
@@ -1493,3 +1628,31 @@ def _is_valid_semantic_list_label(value: str, target_field: str) -> bool:
     if lower in invalid_exact.get(target_field, set()):
         return False
     return not _looks_like_command_phrase(value)
+
+
+def _validate_sql_query(sql: str, bq_table: str, tenant_id: str) -> bool:
+    sql_clean = sql.strip().casefold()
+    if not (sql_clean.startswith("select") or sql_clean.startswith("with")):
+        return False
+    forbidden = {"insert", "update", "delete", "drop", "alter", "create", "truncate", "merge", "grant", "revoke", "replace"}
+    for kw in forbidden:
+        if re.search(r"\b" + kw + r"\b", sql_clean):
+            return False
+    expected_dataset = f"silver__{tenant_id.replace('-', '_')}".casefold()
+    normalized_bq_table = bq_table.casefold().replace("`", "")
+    if expected_dataset not in normalized_bq_table:
+        return False
+    table_refs = re.findall(r"\b(?:from|join)\s+([`a-zA-Z0-9_\.\-]+)", sql_clean)
+    for ref in table_refs:
+        ref_clean = ref.replace("`", "").strip()
+        if "." in ref_clean:
+            if ref_clean != normalized_bq_table:
+                return False
+        else:
+            parts = normalized_bq_table.split(".")
+            short_name = parts[-1]
+            if ref_clean != short_name and ref_clean != normalized_bq_table:
+                if f"with {ref_clean}" not in sql_clean and f"{ref_clean} as (" not in sql_clean:
+                    return False
+    return True
+

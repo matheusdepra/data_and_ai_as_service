@@ -10,5 +10,6 @@ Implementar as telas frontend de Dataset Copilot e Workspace conforme `docs/desi
 - [x] Implementar tela Dataset Copilot com header, quick actions, conversa, input e painel de contexto.
 - [x] Implementar tela Workspace com chat, contexto, assets, ideias e canvas/preview de outputs.
 - [x] Conectar rotas, breadcrumbs e navegação lateral.
+- [x] Garantir a progressao explicita de `Dataset Overview` para a rota dedicada de `Dataset Copilot` quando o overview estiver pronto.
 - [x] Rodar validações disponíveis e ajustar falhas.
 - [x] Atualizar checklist final antes de commit.

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Brain,
@@ -44,6 +44,7 @@ import { getJwt } from "../lib/storage";
 
 export function DatasetOverviewPage() {
   const { ingestionId = "" } = useParams();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const normalizedIngestionId = ingestionId.trim();
   const [detail, setDetail] = useState<IngestionDetail | null>(null);
@@ -154,6 +155,7 @@ export function DatasetOverviewPage() {
   }
 
   const overviewStatus = overview?.status || detail?.ingestion.overview_status || "pending";
+  const datasetCopilotHref = `/datasets/${encodeURIComponent(normalizedIngestionId)}/copilot`;
   const quality = overview?.overview?.quality;
   const schemaRows = (overview?.overview?.schema?.columns || []) as SchemaRow[];
   const previewRows = overview?.overview?.preview_rows || [];
@@ -220,6 +222,10 @@ export function DatasetOverviewPage() {
     }
   }
 
+  function openDatasetCopilot() {
+    navigate(datasetCopilotHref);
+  }
+
   return (
     <div className="space-y-6">
       {overviewStatus === "failed" ? (
@@ -246,6 +252,7 @@ export function DatasetOverviewPage() {
                 statusLabel={overviewContext.statusLabel}
                 overviewStatus={overviewStatus}
                 updatedAt={overviewContext.updatedAt}
+                onOpenDatasetCopilot={openDatasetCopilot}
               />
 
               <OverviewTabs
@@ -267,6 +274,7 @@ export function DatasetOverviewPage() {
                     summaryText={overviewContext.understanding}
                     confidence={overviewContext.confidence}
                     onOpenCopilot={() => setCopilotOpen(true)}
+                    onOpenDatasetCopilot={openDatasetCopilot}
                   />
                   <DatasetSummaryCard context={overviewContext} />
                 </div>
@@ -302,8 +310,9 @@ export function DatasetOverviewPage() {
                       dataType={overviewContext.dataType}
                       usage={overviewContext.usage}
                       onOpenCopilot={() => setCopilotOpen(true)}
+                      onOpenDatasetCopilot={openDatasetCopilot}
                     />
-                    <TermsCard terms={terms} onOpenCopilot={() => setCopilotOpen(true)} />
+                    <TermsCard terms={terms} onOpenCopilot={() => setCopilotOpen(true)} onOpenDatasetCopilot={openDatasetCopilot} />
                   </div>
                   <QualityCard quality={quality} />
                 </>
@@ -450,8 +459,9 @@ function DatasetHeroCard(args: {
   statusLabel: string;
   overviewStatus: string;
   updatedAt: string;
+  onOpenDatasetCopilot: () => void;
 }) {
-  const { datasetName, classification, tags, statusLabel, overviewStatus, updatedAt } = args;
+  const { datasetName, classification, tags, statusLabel, overviewStatus, updatedAt, onOpenDatasetCopilot } = args;
   return (
     <section className="rounded-[28px] bg-[#F8F9FC] px-6 py-5">
       <div className="flex flex-col gap-5">
@@ -479,6 +489,12 @@ function DatasetHeroCard(args: {
             >
               {overviewStatus === "ready" ? "Overview ready" : overviewStatus === "failed" ? "Needs retry" : "Preparing overview"}
             </Badge>
+            {overviewStatus === "ready" ? (
+              <Button variant="secondary" type="button" onClick={onOpenDatasetCopilot}>
+                Open Dataset Copilot
+                <ArrowRight aria-hidden="true" />
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -498,8 +514,9 @@ function AiUnderstandingCard(args: {
   summaryText: string;
   confidence: string;
   onOpenCopilot: () => void;
+  onOpenDatasetCopilot: () => void;
 }) {
-  const { summaryText, confidence, onOpenCopilot } = args;
+  const { summaryText, confidence, onOpenCopilot, onOpenDatasetCopilot } = args;
   return (
     <Card className="min-h-[420px]">
       <CardHeader className="p-5 pb-3">
@@ -523,7 +540,7 @@ function AiUnderstandingCard(args: {
             Refine with Copilot
             <Sparkles aria-hidden="true" />
           </Button>
-          <Button variant="ghost" type="button" onClick={onOpenCopilot}>
+          <Button variant="ghost" type="button" onClick={onOpenDatasetCopilot}>
             View full analysis
             <ArrowRight aria-hidden="true" />
           </Button>
@@ -654,8 +671,9 @@ function BusinessDescriptionCard(args: {
   dataType: string;
   usage: string[];
   onOpenCopilot: () => void;
+  onOpenDatasetCopilot: () => void;
 }) {
-  const { businessArea, domain, dataType, usage, onOpenCopilot } = args;
+  const { businessArea, domain, dataType, usage, onOpenCopilot, onOpenDatasetCopilot } = args;
   return (
     <Card>
       <CardHeader>
@@ -667,16 +685,27 @@ function BusinessDescriptionCard(args: {
         <InfoLine label="Domain" value={domain} />
         <InfoLine label="Data Type" value={dataType} />
         <InfoLine label="Usage" value={usage.join(", ") || "-"} />
-        <Button variant="secondary" className="w-full" type="button" onClick={onOpenCopilot}>
+        <Button variant="secondary" className="w-full" type="button" onClick={onOpenDatasetCopilot}>
           Refine with Copilot
           <Sparkles aria-hidden="true" />
+        </Button>
+        <Button variant="ghost" className="w-full" type="button" onClick={onOpenCopilot}>
+          Ask in side panel
         </Button>
       </CardContent>
     </Card>
   );
 }
 
-function TermsCard({ terms, onOpenCopilot }: { terms: string[]; onOpenCopilot: () => void }) {
+function TermsCard({
+  terms,
+  onOpenCopilot,
+  onOpenDatasetCopilot,
+}: {
+  terms: string[];
+  onOpenCopilot: () => void;
+  onOpenDatasetCopilot: () => void;
+}) {
   const visibleTerms = terms.slice(0, 6);
   const remainingTerms = Math.max(terms.length - visibleTerms.length, 0);
 
@@ -705,9 +734,12 @@ function TermsCard({ terms, onOpenCopilot }: { terms: string[]; onOpenCopilot: (
             {terms.length > 0 ? `${terms.length} terms ready for business review` : "Waiting for inferred terms"}
           </p>
         </div>
-        <Button variant="ghost" className="px-0" type="button" onClick={onOpenCopilot}>
+        <Button variant="ghost" className="px-0" type="button" onClick={onOpenDatasetCopilot}>
           View all terms
           <ArrowRight aria-hidden="true" />
+        </Button>
+        <Button variant="ghost" className="px-0" type="button" onClick={onOpenCopilot}>
+          Ask in side panel
         </Button>
       </CardContent>
     </Card>

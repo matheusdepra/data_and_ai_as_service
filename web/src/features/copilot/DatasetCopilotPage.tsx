@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowRight, BookOpen, Copy, Download, Link2, MessageSquarePlus, Save, Share2, Sparkles, ThumbsDown, ThumbsUp } from "lucide-react";
 
@@ -12,18 +13,138 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 
 import { useDatasetCopilot } from "./hooks/use-dataset-copilot";
-import type { DatasetCopilotMessage } from "./types";
+import { sendDatasetCopilotMessage } from "@/ui/lib/api";
+import { getJwt } from "@/ui/lib/storage";
+import type { DatasetCopilotMessage, GlossaryTerm, DatasetRelationship } from "./types";
 
 export function DatasetCopilotPage() {
-  const { ingestionId } = useParams();
-  const { data, isLoading, isError, refetch } = useDatasetCopilot(ingestionId);
+  const { ingestionId = "" } = useParams();
+  const normalizedIngestionId = ingestionId.trim();
+  const { data, isLoading, isError, refetch } = useDatasetCopilot(normalizedIngestionId);
+
+  const [messages, setMessages] = useState<DatasetCopilotMessage[]>([]);
+  const [inputText, setInputText] = useState("");
+  const [isThinking, setIsThinking] = useState(false);
+  const [semanticOverlay, setSemanticOverlay] = useState<any>({});
+  const [likedMessages, setLikedMessages] = useState<Record<string, "like" | "dislike" | null>>({});
+
+  const sessionId = useRef(crypto.randomUUID());
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Initialize messages with a welcome message on data load
+  useEffect(() => {
+    if (data) {
+      const welcome: DatasetCopilotMessage = {
+        id: "welcome",
+        role: "assistant",
+        kind: "explanation",
+        title: `${data.summary.datasetName} Copilot`,
+        body: `Welcome to the Dataset Copilot! I am ready to help you understand, explore, and improve the dataset "${data.summary.datasetName}". Ask me anything about this data, or select one of the quick actions below.`,
+        bullets: [
+          "Ask what the dataset is about.",
+          "Identify and list quality problems.",
+          "Generate a business glossary.",
+          "Explain the meaning of specific columns.",
+        ],
+        actions: [],
+      };
+      setMessages([welcome]);
+      sessionId.current = crypto.randomUUID();
+      setSemanticOverlay({});
+    }
+  }, [normalizedIngestionId, data?.summary.datasetName]);
+
+  // Auto-scroll to bottom of chat
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isThinking]);
 
   if (isLoading) return <LoadingState rows={4} />;
   if (isError || !data) {
-    return <ErrorState message="Could not load dataset copilot" reason="The mocked copilot context is unavailable." retryLabel="Try again" onRetry={() => void refetch()} />;
+    return <ErrorState message="Could not load dataset copilot" reason="The copilot context is unavailable." retryLabel="Try again" onRetry={() => void refetch()} />;
   }
 
-  const { summary } = data;
+  const baseSummary = data.summary;
+  const summary = {
+    ...baseSummary,
+    ...semanticOverlay.dataset_header,
+    description: semanticOverlay.ai_understanding?.summary || baseSummary.description,
+    domain: semanticOverlay.business_description?.domain || baseSummary.domain,
+    tags: semanticOverlay.dataset_header?.tags || baseSummary.tags,
+  };
+
+  async function handleSendMessage(text: string) {
+    const cleanText = text.trim();
+    if (!cleanText || isThinking) return;
+
+    setInputText("");
+    const userMsgId = crypto.randomUUID();
+    const newUserMessage: DatasetCopilotMessage = {
+      id: userMsgId,
+      role: "user",
+      body: cleanText,
+    };
+
+    setMessages((prev) => [...prev, newUserMessage]);
+    setIsThinking(true);
+
+    try {
+      const jwt = getJwt();
+      const response = await sendDatasetCopilotMessage({
+        jwt,
+        sessionId: sessionId.current,
+        ingestionId: normalizedIngestionId,
+        message: cleanText,
+      });
+
+      // Extract and merge semantic updates dynamically
+      const semantic = extractSemanticUpdate(response.metadata, normalizedIngestionId);
+      if (semantic) {
+        setSemanticOverlay((current: any) => ({
+          ...current,
+          ...semantic,
+        }));
+      }
+
+      // Map backend response metadata to rich message structure
+      const metadata = (response.metadata || {}) as any;
+      const assistantMessage: DatasetCopilotMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        kind: metadata.kind || undefined,
+        title: metadata.title || undefined,
+        body: response.answer,
+        bullets: metadata.bullets || undefined,
+        glossary: (metadata.glossary as GlossaryTerm[]) || undefined,
+        relationships: (metadata.relationships as DatasetRelationship[]) || undefined,
+        actions: metadata.actions || undefined,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (error) {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          title: "Copilot unavailable",
+          body: error instanceof Error ? error.message : "The dataset copilot could not answer right now.",
+        },
+      ]);
+    } finally {
+      setIsThinking(false);
+    }
+  }
+
+  function handleActionClick(action: string) {
+    if (action.includes("Save") || action === "Confirm") {
+      void handleSendMessage("Sim, aplicar alteração.");
+    } else if (action === "Cancel") {
+      void handleSendMessage("Cancelar.");
+    } else {
+      void handleSendMessage(action);
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -75,6 +196,7 @@ export function DatasetCopilotPage() {
                   <button
                     key={action}
                     type="button"
+                    onClick={() => void handleSendMessage(action)}
                     className="flex items-center justify-between gap-3 rounded-xl border border-[#E5E7EB] bg-white px-4 py-3 text-left text-sm font-semibold text-[#111827] transition hover:border-[#6E5BFF]/40 hover:bg-[#F3F1FF]"
                   >
                     <span>{action}</span>
@@ -90,12 +212,29 @@ export function DatasetCopilotPage() {
               <CardTitle>Conversation</CardTitle>
               <CardDescription>Assistant responses can include explanations, quality assessment, glossary tables and relationship analysis.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {data.messages.length === 0 ? (
+            <CardContent className="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+              {messages.length === 0 ? (
                 <EmptyState title="Ask your first question about this dataset" description="Try asking what the dataset is about, which columns matter or what quality issues exist." />
               ) : (
-                data.messages.map((message) => <ConversationMessage key={message.id} message={message} />)
+                messages.map((message) => (
+                  <ConversationMessage
+                    key={message.id}
+                    message={message}
+                    likedState={likedMessages[message.id] || null}
+                    onLikeToggle={(id, state) => setLikedMessages((prev) => ({ ...prev, [id]: state }))}
+                    onActionClick={handleActionClick}
+                  />
+                ))
               )}
+              {isThinking && (
+                <div className="flex items-center gap-2 text-sm text-[#6B7280]">
+                  <span className="flex h-2 w-2 animate-bounce rounded-full bg-[#6E5BFF]" />
+                  <span className="flex h-2 w-2 animate-bounce rounded-full bg-[#6E5BFF] delay-100" />
+                  <span className="flex h-2 w-2 animate-bounce rounded-full bg-[#6E5BFF] delay-200" />
+                  <span>Copilot is analyzing dataset...</span>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </CardContent>
           </Card>
 
@@ -107,17 +246,34 @@ export function DatasetCopilotPage() {
             <CardContent className="space-y-4">
               <label className="block">
                 <span className="sr-only">Ask anything about this dataset</span>
-                <Textarea placeholder="Ask anything about this dataset..." className="min-h-28" />
+                <Textarea
+                  placeholder="Ask anything about this dataset..."
+                  className="min-h-28"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      void handleSendMessage(inputText);
+                    }
+                  }}
+                />
               </label>
               <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="flex flex-wrap gap-2">
                   {data.suggestedPrompts.map((prompt) => (
-                    <Button key={prompt} variant="secondary" size="sm" type="button">
+                    <Button
+                      key={prompt}
+                      variant="secondary"
+                      size="sm"
+                      type="button"
+                      onClick={() => void handleSendMessage(prompt)}
+                    >
                       {prompt}
                     </Button>
                   ))}
                 </div>
-                <Button type="button">
+                <Button type="button" onClick={() => void handleSendMessage(inputText)} disabled={isThinking}>
                   Send question
                   <Sparkles aria-hidden="true" />
                 </Button>
@@ -140,7 +296,7 @@ export function DatasetCopilotPage() {
               <div className="flex flex-wrap gap-2">
                 <Badge variant="success">{summary.status}</Badge>
                 <Badge variant="secondary">{summary.domain}</Badge>
-                {summary.tags.map((tag) => (
+                {summary.tags.map((tag: string) => (
                   <Badge key={tag} variant="outline">{tag}</Badge>
                 ))}
               </div>
@@ -201,13 +357,24 @@ export function DatasetCopilotPage() {
   );
 }
 
-function ConversationMessage({ message }: { message: DatasetCopilotMessage }) {
+interface ConversationMessageProps {
+  message: DatasetCopilotMessage;
+  likedState: "like" | "dislike" | null;
+  onLikeToggle: (id: string, state: "like" | "dislike" | null) => void;
+  onActionClick: (action: string) => void;
+}
+
+function ConversationMessage({ message, likedState, onLikeToggle, onActionClick }: ConversationMessageProps) {
   if (message.role === "user") {
     return (
       <div className="ml-auto max-w-2xl rounded-2xl bg-[#6E5BFF] px-5 py-4 text-white">
         <p className="text-sm leading-relaxed">{message.body}</p>
       </div>
     );
+  }
+
+  function handleCopy() {
+    void navigator.clipboard.writeText(message.body);
   }
 
   return (
@@ -218,7 +385,7 @@ function ConversationMessage({ message }: { message: DatasetCopilotMessage }) {
         </span>
         <div className="min-w-0 flex-1 space-y-4">
           {message.title ? <h3 className="text-base font-semibold text-[#111827]">{message.title}</h3> : null}
-          <p className="text-sm leading-relaxed text-[#6B7280]">{message.body}</p>
+          <p className="text-sm leading-relaxed text-[#6B7280] whitespace-pre-wrap">{message.body}</p>
           {message.bullets?.length ? (
             <ul className="space-y-2 text-sm text-[#111827]">
               {message.bullets.map((bullet) => (
@@ -253,12 +420,52 @@ function ConversationMessage({ message }: { message: DatasetCopilotMessage }) {
               </table>
             </div>
           ) : null}
+          {message.relationships?.length ? (
+            <div className="space-y-3">
+              {message.relationships.map((rel) => (
+                <div key={rel.dataset} className="rounded-xl border border-[#E5E7EB] bg-white p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-[#111827]">{rel.dataset}</p>
+                    <Badge variant={rel.confidence >= 80 ? "success" : "warning"}>{rel.confidence}%</Badge>
+                  </div>
+                  <p className="mt-2 text-xs text-[#6B7280]">Relationship key: {rel.key}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2 border-t border-[#E5E7EB] pt-4">
-            <Button variant="ghost" size="sm" type="button"><ThumbsUp aria-hidden="true" />Like</Button>
-            <Button variant="ghost" size="sm" type="button"><ThumbsDown aria-hidden="true" />Dislike</Button>
-            <Button variant="ghost" size="sm" type="button"><Copy aria-hidden="true" />Copy</Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              className={likedState === "like" ? "text-green-600 bg-green-50" : ""}
+              onClick={() => onLikeToggle(message.id, likedState === "like" ? null : "like")}
+            >
+              <ThumbsUp aria-hidden="true" />
+              Like
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              className={likedState === "dislike" ? "text-red-600 bg-red-50" : ""}
+              onClick={() => onLikeToggle(message.id, likedState === "dislike" ? null : "dislike")}
+            >
+              <ThumbsDown aria-hidden="true" />
+              Dislike
+            </Button>
+            <Button variant="ghost" size="sm" type="button" onClick={handleCopy}>
+              <Copy aria-hidden="true" />
+              Copy
+            </Button>
             {message.actions?.map((action) => (
-              <Button key={action} variant="secondary" size="sm" type="button">
+              <Button
+                key={action}
+                variant="secondary"
+                size="sm"
+                type="button"
+                onClick={() => onActionClick(action)}
+              >
                 {action.includes("Save") ? <Save aria-hidden="true" /> : <Link2 aria-hidden="true" />}
                 {action}
               </Button>
@@ -277,4 +484,29 @@ function InfoLine({ label, value }: { label: string; value: string }) {
       <span className="font-medium text-[#111827]">{value}</span>
     </div>
   );
+}
+
+function extractSemanticUpdate(
+  metadata: Record<string, unknown>,
+  ingestionId: string,
+): any | undefined {
+  const actions = metadata.client_actions;
+  if (Array.isArray(actions)) {
+    const action = actions.find((item) => {
+      if (!isPlainObject(item)) return false;
+      return item.type === "merge_overview_semantic" && item.ingestion_id === ingestionId;
+    });
+    if (isPlainObject(action) && isPlainObject(action.semantic)) {
+      return action.semantic;
+    }
+  }
+
+  if (metadata.tool === "apply_semantic_patch" && metadata.persisted === true && isPlainObject(metadata.semantic)) {
+    return metadata.semantic;
+  }
+  return undefined;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
