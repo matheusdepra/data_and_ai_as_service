@@ -13,6 +13,11 @@ export type DatasetRelationship = {
   key: string;
 };
 
+export type QueryResultData = {
+  columns: string[];
+  rows: Record<string, unknown>[];
+};
+
 export type DatasetCopilotMessage = {
   id: string;
   role: "assistant" | "user";
@@ -22,8 +27,10 @@ export type DatasetCopilotMessage = {
   bullets?: string[];
   glossary?: GlossaryTerm[];
   relationships?: DatasetRelationship[];
+  queryResult?: QueryResultData;
   actions?: string[];
 };
+
 
 export type DatasetCopilotSummary = {
   datasetName: string;

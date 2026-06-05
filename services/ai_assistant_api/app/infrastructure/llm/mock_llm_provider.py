@@ -112,6 +112,15 @@ def _tool_aware_response(user_text: str, tool_content: str) -> str:
     parsed = _extract_json_object(tool_content)
     if not parsed:
         return "I executed an internal tool for this request, but I could not format the result cleanly."
+    
+    if parsed.get("status") == "success" and "results" in parsed:
+        results = parsed["results"]
+        return (
+            f"Eu executei a consulta no banco de dados para responder à sua pergunta: '{user_text}'.\n\n"
+            f"Foram encontrados {len(results)} registros correspondentes na tabela Silver do dataset. "
+            "Os resultados tabulares foram extraídos e estão exibidos abaixo na tabela interativa do chat para facilitar sua análise."
+        )
+
     status = parsed.get("status")
     if status == "previewed":
         return (

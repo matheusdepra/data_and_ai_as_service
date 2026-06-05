@@ -15,14 +15,26 @@ API REST para upload de arquivos (CSV/JSON/Parquet) com multitenancy por `tenant
 - `BQ_META_DATASET`: dataset do metadata store (default: `dv_${DV_ENV}_meta`)
 
 ## Rodar local (exemplo)
+Requisitos:
+- Python `3.11+`
+- este servico usa apenas `requirements.txt` e **nao** suporta `pip install -e '.[dev]'`
+
 ```bash
 cd services/ingestion_api
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -r requirements.txt
+export GCS_LANDING_BUCKET=dummy-local-bucket
+export AUTH_MODE=unverified_jwt
 uvicorn app.main:app --reload --port 8080
+```
+
+Health check:
+
+```bash
+curl http://localhost:8080/healthz
 ```
 
 ## Build (container)
 O `Dockerfile` foi pensado para Cloud Run.
-

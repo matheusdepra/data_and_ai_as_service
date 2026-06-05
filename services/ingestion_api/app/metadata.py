@@ -176,3 +176,32 @@ LIMIT 200
         errors: list[IngestionError] = [dict(r.items()) for r in errors_rows]
 
         return {"ingestion": ingestion, "artifacts": artifacts, "errors": errors}
+
+    def delete_ingestion_records(self, *, tenant_id: str, ingestion_id: str) -> None:
+        base = f"`{self._bq.project}.{self._dataset_id}`"
+        params = [
+            bigquery.ScalarQueryParameter("tenant_id", "STRING", tenant_id),
+            bigquery.ScalarQueryParameter("ingestion_id", "STRING", ingestion_id),
+        ]
+        for table_name in ("artifacts", "ingestion_errors", "ingestions"):
+            query = f"""
+DELETE FROM {base}.{table_name}
+WHERE tenant_id = @tenant_id AND ingestion_id = @ingestion_id
+"""
+            self._bq.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params)).result()
+
+    def find_ingestion_tenant(self, *, ingestion_id: str) -> str | None:
+        base = f"`{self._bq.project}.{self._dataset_id}`"
+        query = f"""
+SELECT tenant_id
+FROM {base}.ingestions
+WHERE ingestion_id = @ingestion_id
+ORDER BY updated_at DESC
+LIMIT 1
+"""
+        params = [bigquery.ScalarQueryParameter("ingestion_id", "STRING", ingestion_id)]
+        rows = list(self._bq.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params)).result())
+        if not rows:
+            return None
+        tenant_id = rows[0].get("tenant_id")
+        return str(tenant_id) if tenant_id else None

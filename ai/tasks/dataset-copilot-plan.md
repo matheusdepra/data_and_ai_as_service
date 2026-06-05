@@ -33,3 +33,8 @@ Checklist for implementing the Dataset Copilot backend agent, ad-hoc query capab
   - [x] Compile and verify python services: `pytest`
   - [x] Build frontend app: `npm run build`
   - [x] Manually verify end-to-end chat flow
+
+- [ ] **Phase 7: Conversation Logic Fix**
+  - [x] Narrow semantic edit detection so exploratory prompts do not open apply/save confirmation flows
+  - [x] Show persistence actions in the frontend only for actual semantic preview turns
+  - [x] Rebuild backend/frontend validations after the fix

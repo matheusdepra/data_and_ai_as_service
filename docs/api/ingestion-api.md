@@ -87,6 +87,34 @@ Observacoes do estado atual:
   - `cast_report`
   - `normalization_warnings`
 
+### `DELETE /v1/ingestions/{ingestion_id}`
+Remove uma ingestao abandonada em cascade dentro do mesmo `tenant_id`.
+
+Cascade MVP:
+- apaga objetos GCS conhecidos referenciados pela ingestao (`landing`, `bronze`, `quarantine` quando existirem).
+- apaga tabelas BigQuery conhecidas referenciadas pelos artifacts da ingestao (ex.: `silver`).
+- apaga metadata no BigQuery (`ingestions`, `artifacts`, `ingestion_errors`).
+- apaga o documento da ingestao e subcolecoes associadas no read model do Firestore.
+
+Response (200):
+```json
+{
+  "ok": true,
+  "ingestion_id": "uuid",
+  "deleted": {
+    "gcs_uris": ["gs://bucket/path/file.csv"],
+    "bq_tables": ["project.dataset.table"],
+    "metadata": true,
+    "read_model": true
+  }
+}
+```
+
+Regras MVP:
+- permitido apenas para o mesmo `tenant_id` do token.
+- ingestoes com status `*_running` ou `overview_status = running` retornam `409`, porque o backend ainda nao possui cancelamento coordenado dos jobs.
+- o delete e best-effort nos artefatos fisicos; metadata e read model continuam sendo a fonte de verdade para considerar a ingestao removida.
+
 ### `GET /v1/ingestions/{ingestion_id}/overview`
 Retorna o status da analise de overview para a ingestao do tenant autenticado.
 

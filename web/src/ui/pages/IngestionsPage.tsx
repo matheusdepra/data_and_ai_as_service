@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { Link } from "react-router-dom";
-import { ArrowRight, Eye, FileUp, RefreshCw } from "lucide-react";
+import { ArrowRight, Eye, FileUp, RefreshCw, Trash2 } from "lucide-react";
 
 import { DataTable } from "@/components/data/DataTable";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getIngestions, type IngestionListItem } from "../lib/api";
+import { deleteIngestion, getIngestions, type IngestionListItem } from "../lib/api";
 import { friendlyStatus, statusTone } from "../lib/ingestion";
 import { getJwt } from "../lib/storage";
 
@@ -16,6 +16,7 @@ import { getJwt } from "../lib/storage";
 export function IngestionsPage() {
   const [items, setItems] = useState<IngestionListItem[]>([]);
   const [busy, setBusy] = useState(false);
+  const [deletingId, setDeletingId] = useState("");
   const [err, setErr] = useState("");
 
   useEffect(() => {
@@ -38,6 +39,43 @@ export function IngestionsPage() {
       cancelled = true;
     };
   }, []);
+
+  async function refreshIngestions() {
+    setBusy(true);
+    setErr("");
+    try {
+      const jwt = getJwt();
+      const res = await getIngestions({ jwt, limit: 50 });
+      setItems(res.items);
+    } catch (error) {
+      setErr(String(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleDelete(item: IngestionListItem) {
+    if (isRunning(item)) {
+      setErr("Running ingestions cannot be deleted yet. Wait for processing to finish or fail first.");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Delete ingestion ${item.ingestion_id}?\n\nThis removes the ingestion metadata and all known artifacts for this tenant. This action cannot be undone.`,
+    );
+    if (!confirmed) return;
+
+    setDeletingId(item.ingestion_id);
+    setErr("");
+    try {
+      const jwt = getJwt();
+      await deleteIngestion({ jwt, ingestionId: item.ingestion_id });
+      setItems((current) => current.filter((entry) => entry.ingestion_id !== item.ingestion_id));
+    } catch (error) {
+      setErr(error instanceof Error ? error.message : String(error));
+    } finally {
+      setDeletingId("");
+    }
+  }
 
   const columns = useMemo<ColumnDef<IngestionListItem>[]>(
     () => [
@@ -77,19 +115,33 @@ export function IngestionsPage() {
         id: "action",
         header: "",
         cell: ({ row }) => {
-          const href = destinationForIngestion(row.original);
+          const item = row.original;
+          const href = destinationForIngestion(item);
+          const isDeleting = deletingId === item.ingestion_id;
           return (
-            <Button asChild size="sm">
-              <Link to={href}>
-                {row.original.status === "silver_ready" ? <Eye className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-                Open
-              </Link>
-            </Button>
+            <div className="flex items-center justify-end gap-2">
+              <Button asChild size="sm">
+                <Link to={href}>
+                  {item.status === "silver_ready" ? <Eye className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+                  Open
+                </Link>
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                type="button"
+                disabled={isDeleting || isRunning(item)}
+                onClick={() => void handleDelete(item)}
+              >
+                <Trash2 className="h-4 w-4 text-[#DC2626]" />
+                {isDeleting ? "Deleting..." : "Delete"}
+              </Button>
+            </div>
           );
         },
       },
     ],
-    [],
+    [deletingId],
   );
 
   return (
@@ -99,7 +151,7 @@ export function IngestionsPage() {
         description="Resume the exact point where each dataset ingestion stopped, from processing to overview."
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => window.location.reload()} disabled={busy}>
+            <Button variant="outline" onClick={() => void refreshIngestions()} disabled={busy}>
               <RefreshCw className="h-4 w-4" />
               Refresh
             </Button>
@@ -132,7 +184,7 @@ export function IngestionsPage() {
       ) : (
         <DataTable
           title="Recent ingestions"
-          description={busy ? "Loading latest activity..." : "Open an ingestion to continue processing or review the dataset overview."}
+          description={busy ? "Loading latest activity..." : "Open an ingestion to continue processing, review the dataset overview or delete abandoned work."}
           columns={columns}
           data={items}
           searchPlaceholder="Search by collection, file or status"
@@ -148,6 +200,11 @@ function destinationForIngestion(item: IngestionListItem): string {
     return `/datasets/${encodeURIComponent(item.ingestion_id)}/overview`;
   }
   return `/processing/${encodeURIComponent(item.ingestion_id)}`;
+}
+
+
+function isRunning(item: IngestionListItem): boolean {
+  return item.status.endsWith("_running") || item.overview_status === "running";
 }
 
 

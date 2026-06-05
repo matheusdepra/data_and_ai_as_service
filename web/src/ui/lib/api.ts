@@ -103,6 +103,17 @@ export type IngestionListResponse = {
   limit: number;
 };
 
+export type DeleteIngestionResponse = {
+  ok: boolean;
+  ingestion_id: string;
+  deleted: {
+    gcs_uris: string[];
+    bq_tables: string[];
+    metadata: boolean;
+    read_model: boolean;
+  };
+};
+
 export type IngestionOverviewResponse = {
   tenant_id: string;
   ingestion_id: string;
@@ -286,6 +297,14 @@ export async function getIngestions(args: {
   return json<IngestionListResponse>(res);
 }
 
+export async function deleteIngestion(args: { jwt: string; ingestionId: string }): Promise<DeleteIngestionResponse> {
+  const res = await fetch(`${baseUrl()}/v1/ingestions/${encodeURIComponent(args.ingestionId)}`, {
+    method: "DELETE",
+    headers: authHeaders(args.jwt),
+  });
+  return json<DeleteIngestionResponse>(res);
+}
+
 export async function getIngestionOverview(args: { jwt: string; ingestionId: string }): Promise<IngestionOverviewResponse> {
   const res = await fetch(`${baseUrl()}/v1/ingestions/${encodeURIComponent(args.ingestionId)}/overview`, {
     method: "GET",
@@ -374,4 +393,3 @@ export async function sendDatasetCopilotMessage(args: {
   });
   return json<OverviewChatResponse>(res);
 }
-

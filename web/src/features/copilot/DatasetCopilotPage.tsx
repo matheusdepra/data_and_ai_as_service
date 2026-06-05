@@ -108,6 +108,19 @@ export function DatasetCopilotPage() {
 
       // Map backend response metadata to rich message structure
       const metadata = (response.metadata || {}) as any;
+
+      // Extract client actions (e.g. tabular query results) from metadata
+      let queryResult = undefined;
+      const actions = metadata.client_actions;
+      if (Array.isArray(actions)) {
+        const queryAction = actions.find((a: any) => a && a.type === "display_tabular_data");
+        if (queryAction && Array.isArray(queryAction.rows) && queryAction.rows.length > 0) {
+          const rows = queryAction.rows;
+          const columns = Object.keys(rows[0]);
+          queryResult = { columns, rows };
+        }
+      }
+
       const assistantMessage: DatasetCopilotMessage = {
         id: crypto.randomUUID(),
         role: "assistant",
@@ -117,7 +130,8 @@ export function DatasetCopilotPage() {
         bullets: metadata.bullets || undefined,
         glossary: (metadata.glossary as GlossaryTerm[]) || undefined,
         relationships: (metadata.relationships as DatasetRelationship[]) || undefined,
-        actions: metadata.actions || undefined,
+        queryResult: queryResult,
+        actions: resolveMessageActions(metadata),
       };
 
       setMessages((prev) => [...prev, assistantMessage]);
@@ -137,7 +151,7 @@ export function DatasetCopilotPage() {
   }
 
   function handleActionClick(action: string) {
-    if (action.includes("Save") || action === "Confirm") {
+    if (action === "Apply to Dataset" || action.includes("Save")) {
       void handleSendMessage("Sim, aplicar alteração.");
     } else if (action === "Cancel") {
       void handleSendMessage("Cancelar.");
@@ -173,12 +187,12 @@ export function DatasetCopilotPage() {
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <main className="space-y-6">
-          <section className="grid gap-4 md:grid-cols-4" aria-label="Dataset metrics">
+          {/* <section className="grid gap-4 md:grid-cols-4" aria-label="Dataset metrics">
             <MetricCard label="Rows" value={summary.rows} comparison="Ready for analysis" />
             <MetricCard label="Columns" value={summary.columns} comparison="Business + technical fields" />
             <MetricCard label="Quality" value={`${summary.qualityScore}%`} trend="up" comparison="High confidence" />
             <MetricCard label="Size" value={summary.size} comparison={summary.lastUpdated} />
-          </section>
+          </section> */}
 
           <Card>
             <CardHeader>
@@ -433,6 +447,32 @@ function ConversationMessage({ message, likedState, onLikeToggle, onActionClick 
               ))}
             </div>
           ) : null}
+          {message.queryResult ? (
+            <div className="overflow-hidden rounded-xl border border-[#E5E7EB] bg-white">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-[#F4F6F8] text-xs uppercase tracking-wide text-[#6B7280]">
+                    <tr>
+                      {message.queryResult.columns.map((col) => (
+                        <th key={col} className="px-4 py-3 font-semibold">{col}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {message.queryResult.rows.map((row, i) => (
+                      <tr key={i} className="border-t border-[#E5E7EB] transition hover:bg-[#FAFBFC]">
+                        {message.queryResult!.columns.map((col) => (
+                          <td key={col} className="px-4 py-3 text-[#374151]">
+                            {row[col] !== null && row[col] !== undefined ? String(row[col]) : "-"}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
           <div className="flex flex-wrap items-center gap-2 border-t border-[#E5E7EB] pt-4">
             <Button
               variant="ghost"
@@ -505,6 +545,25 @@ function extractSemanticUpdate(
     return metadata.semantic;
   }
   return undefined;
+}
+
+function resolveMessageActions(metadata: Record<string, unknown>): string[] | undefined {
+  if (metadata.tool === "preview_semantic_patch" && metadata.requires_confirmation === true) {
+    return ["Apply to Dataset", "Cancel"];
+  }
+
+  const actions = metadata.actions;
+  if (!Array.isArray(actions)) return undefined;
+
+  const filtered = actions.filter(
+    (action): action is string =>
+      typeof action === "string" &&
+      !action.includes("Save") &&
+      action !== "Confirm" &&
+      action !== "Cancel" &&
+      action !== "Apply",
+  );
+  return filtered.length > 0 ? filtered : undefined;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

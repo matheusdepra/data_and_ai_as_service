@@ -84,19 +84,47 @@ TODO before production deployment:
 
 ## Local development
 
+Requisitos:
+- Python `3.11+`
+- para `Dataset Copilot`, o `ingestion_api` precisa estar rodando e acessivel por `CHAT_INGESTION_API_BASE_URL`
+- para usar LLM real, configure credenciais GCP locais e use `CHAT_LLM_PROVIDER=vertex_ai`
+
 ```bash
 cd services/ai_assistant_api
-python -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate
-pip install -e '.[dev]'
-uvicorn app.main:app --reload --port 8080
+python -m pip install --upgrade pip setuptools wheel
+python -m pip install -e '.[dev]'
+export CHAT_INGESTION_API_BASE_URL=http://localhost:8080
+export CHAT_LLM_PROVIDER=mock
+uvicorn app.main:app --reload --port 8081
+```
+
+Para testar com Vertex AI/Gemini em vez do mock:
+
+```bash
+export CHAT_LLM_PROVIDER=vertex_ai
+export CHAT_GCP_PROJECT_ID=your-gcp-project
+export CHAT_GCP_LOCATION=us-central1
+export CHAT_VERTEX_MODEL_NAME=gemini-1.5-flash
+```
+
+Ordem recomendada para testar o Dataset Copilot localmente:
+1. Subir `services/ingestion_api` na porta `8080`
+2. Subir `services/ai_assistant_api` na porta `8081`
+3. Apontar o frontend para `VITE_API_BASE_URL=http://localhost:8080` e `VITE_AI_ASSISTANT_API_BASE_URL=http://localhost:8081`
+
+Health check:
+
+```bash
+curl http://localhost:8081/health
 ```
 
 Call the API:
 
 ```bash
-curl -s http://localhost:8080/health
-curl -s -X POST http://localhost:8080/api/v1/chat/messages \
+curl -s http://localhost:8081/health
+curl -s -X POST http://localhost:8081/api/v1/chat/messages \
   -H 'content-type: application/json' \
   -H 'x-dev-tenant-id: dev-tenant' \
   -d '{"session_id":"abc123","user_id":"user-001","message":"What were the sales by month?","prompt_key":"data_analyst","context":{"dataset":"sales","tables":["orders"],"filters":{"year":2025}}}'

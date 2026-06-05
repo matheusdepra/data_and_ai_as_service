@@ -57,7 +57,9 @@ class InMemoryPromptRepository:
                     "    \"actions\": [\"Save to Dataset\", \"Save to Catalog\", \"Copy\", ...]\n"
                     "  }}\n"
                     "}}\n"
-                    "Only include fields relevant to the current 'kind'. Do not include empty lists.\n\n"
+                    "Only include fields relevant to the current 'kind'. Do not include empty lists.\n"
+                    "Only include actions such as \"Save to Dataset\" or \"Save to Catalog\" when the user explicitly asked to refine or persist metadata and you are presenting a proposed semantic change.\n"
+                    "For exploratory answers such as quality assessment, glossary generation, relationships or explanation, prefer no actions or only non-persistence actions.\n\n"
                     "Dataset Context:\n{context}"
                 ),
             ),
@@ -68,4 +70,3 @@ class InMemoryPromptRepository:
         if prompt is None:
             raise NotFoundError("Prompt template not found", details={"prompt_key": key})
         return prompt
-

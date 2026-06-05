@@ -792,6 +792,8 @@ def _resolve_list_field_proposal(message: str, lower: str, response_language: st
     for target_field, aliases in LIST_FIELD_ALIASES.items():
         if not any(alias in lower for alias in aliases):
             continue
+        if not _looks_like_list_edit_request(lower):
+            continue
         values = _extract_list_values(message, aliases)
         if values:
             proposal = _make_proposal(
@@ -939,7 +941,7 @@ def _extract_list_values(message: str, aliases: tuple[str, ...]) -> list[str]:
         match = re.search(pattern, compact)
         if match:
             return _extract_csv_values(match.group(1))
-    return _extract_csv_values(message) if any(alias in compact.casefold() for alias in aliases) else []
+    return []
 
 
 def _extract_csv_values(raw_message: str) -> list[str]:
@@ -1176,28 +1178,6 @@ def _should_consider_semantic_intent(message: str) -> bool:
             "update",
             "change",
             "cambiar",
-            "tag",
-            "termo",
-            "terms",
-            "usage",
-            "dominio",
-            "domínio",
-            "domain",
-            "business area",
-            "area de negocio",
-            "área de negócio",
-            "tipo de dado",
-            "summary",
-            "sumario",
-            "sumário",
-            "resumo",
-            "resumen",
-            "descrição",
-            "descricao",
-            "descripción",
-            "description",
-            "ai summary",
-            "ai understanding",
             "reescrev",
             "refinar",
             "rewrite",
@@ -1214,6 +1194,33 @@ def _should_consider_semantic_intent(message: str) -> bool:
             "corto",
             "claro",
             "clear",
+        )
+    )
+
+
+def _looks_like_list_edit_request(message: str) -> bool:
+    return any(
+        token in message
+        for token in (
+            "mudar",
+            "alterar",
+            "troca",
+            "trocar",
+            "update",
+            "change",
+            "cambiar",
+            "ajust",
+            "set ",
+            "definir",
+            "setar",
+            "adicionar",
+            "adiciona",
+            "add ",
+            "remover",
+            "remove ",
+            "refinar",
+            "rewrite",
+            "rephrase",
         )
     )
 
@@ -1655,4 +1662,3 @@ def _validate_sql_query(sql: str, bq_table: str, tenant_id: str) -> bool:
                 if f"with {ref_clean}" not in sql_clean and f"{ref_clean} as (" not in sql_clean:
                     return False
     return True
-

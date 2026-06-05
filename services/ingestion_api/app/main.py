@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from urllib.parse import urlparse
 
 from fastapi import FastAPI, File, Form, Request, UploadFile
 from fastapi import HTTPException
@@ -28,7 +29,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-API-Key", "If-Match"],
 )
 
@@ -51,9 +52,28 @@ def _resolve_tenant_id(request: Request) -> str:
 
 def _resolve_actor(request: Request) -> dict[str, str]:
     if settings.identity_api_base_url:
-        me = resolve_me(settings, request)
+        try:
+            me = resolve_me(settings, request)
+        except HTTPException as exc:
+            _log_event(
+                stage="authz",
+                status="identity_resolution_failed",
+                identity_api_base_url=settings.identity_api_base_url,
+                detail=str(exc.detail),
+                status_code=exc.status_code,
+                request_id=request.headers.get("x-cloud-trace-context") or request.headers.get("x-request-id") or "",
+            )
+            raise
         tenant_id_raw = str(me.get("tenant_id") or "")
         if not tenant_id_raw.strip():
+            _log_event(
+                stage="authz",
+                status="identity_resolution_failed",
+                identity_api_base_url=settings.identity_api_base_url,
+                detail="tenant not resolved",
+                status_code=403,
+                request_id=request.headers.get("x-cloud-trace-context") or request.headers.get("x-request-id") or "",
+            )
             raise HTTPException(status_code=403, detail="tenant not resolved")
         return {
             "tenant_id": naming.normalize_tenant_id(tenant_id_raw),
@@ -69,7 +89,19 @@ def _resolve_actor(request: Request) -> dict[str, str]:
         else:
             token = auth.get_bearer_token(request)
             claims = auth.get_claims(settings, token)
-        tenant_id_raw = auth.get_tenant_id(settings, claims)
+        try:
+            tenant_id_raw = auth.get_tenant_id(settings, claims)
+        except HTTPException as exc:
+            _log_event(
+                stage="authz",
+                status="tenant_claim_resolution_failed",
+                auth_mode=settings.auth_mode,
+                auth_tenant_claim=settings.auth_tenant_claim,
+                detail=str(exc.detail),
+                status_code=exc.status_code,
+                request_id=request.headers.get("x-cloud-trace-context") or request.headers.get("x-request-id") or "",
+            )
+            raise
         return {
             "tenant_id": naming.normalize_tenant_id(tenant_id_raw),
             "sub": str(claims.get("sub") or ""),
@@ -122,6 +154,82 @@ def _merge_ingestion_projection(ingestion: dict[str, object], fs_detail: dict[st
         if key in fs_detail:
             merged[key] = fs_detail[key]
     return merged
+
+
+def _log_ingestion_access_mismatch(*, request: Request, tenant_id: str, ingestion_id: str, surface: str) -> None:
+    owner_tenant_id = None
+    try:
+        owner_tenant_id = meta.find_ingestion_tenant(ingestion_id=ingestion_id)
+    except Exception as exc:
+        owner_tenant_id = f"lookup_error:{exc.__class__.__name__}"
+
+    _log_event(
+        stage="authz",
+        status="ingestion_lookup_mismatch",
+        surface=surface,
+        tenant_id=tenant_id,
+        ingestion_id=ingestion_id,
+        owner_tenant_id=owner_tenant_id,
+        request_id=request.headers.get("x-cloud-trace-context") or request.headers.get("x-request-id") or "",
+    )
+
+
+def _is_running_ingestion(*, detail: dict[str, object] | None, fs_detail: dict[str, object] | None) -> bool:
+    statuses: set[str] = set()
+    if detail and isinstance(detail.get("ingestion"), dict):
+        statuses.add(str(detail["ingestion"].get("status") or ""))
+    if fs_detail:
+        statuses.add(str(fs_detail.get("status") or ""))
+        statuses.add(str(fs_detail.get("overview_status") or ""))
+    return any(status.endswith("_running") or status == "running" for status in statuses if status)
+
+
+def _collect_gcs_uris(*, detail: dict[str, object] | None, fs_detail: dict[str, object] | None) -> list[str]:
+    uris: set[str] = set()
+    if detail and isinstance(detail.get("ingestion"), dict):
+        landed = detail["ingestion"].get("landed_gcs_uri")
+        if landed:
+            uris.add(str(landed))
+    if detail:
+        for artifact in detail.get("artifacts", []):  # type: ignore[arg-type]
+            if artifact.get("gcs_uri"):  # type: ignore[union-attr]
+                uris.add(str(artifact["gcs_uri"]))  # type: ignore[index]
+    if fs_detail:
+        file_info = fs_detail.get("file") or {}
+        if isinstance(file_info, dict) and file_info.get("gcs_uri"):
+            uris.add(str(file_info["gcs_uri"]))
+        artifacts_summary = fs_detail.get("artifacts_summary") or {}
+        if isinstance(artifacts_summary, dict):
+            for value in artifacts_summary.values():
+                if isinstance(value, str) and value.startswith("gs://"):
+                    uris.add(value)
+    return sorted(uris)
+
+
+def _collect_bq_tables(*, detail: dict[str, object] | None, fs_detail: dict[str, object] | None) -> list[str]:
+    tables: set[str] = set()
+    if detail:
+        for artifact in detail.get("artifacts", []):  # type: ignore[arg-type]
+            if artifact.get("bq_table"):  # type: ignore[union-attr]
+                tables.add(str(artifact["bq_table"]))  # type: ignore[index]
+    if fs_detail:
+        technical_summary = fs_detail.get("technical_summary") or {}
+        if isinstance(technical_summary, dict) and technical_summary.get("bq_table"):
+            tables.add(str(technical_summary["bq_table"]))
+        artifacts_summary = fs_detail.get("artifacts_summary") or {}
+        if isinstance(artifacts_summary, dict):
+            for value in artifacts_summary.values():
+                if isinstance(value, str) and "." in value and not value.startswith("gs://"):
+                    tables.add(value)
+    return sorted(tables)
+
+
+def _delete_gcs_uri(uri: str) -> None:
+    parsed = urlparse(uri)
+    if parsed.scheme != "gs" or not parsed.netloc or not parsed.path:
+        return
+    blob = gcs.bucket(parsed.netloc).blob(parsed.path.lstrip("/"))
+    blob.delete(if_generation_match=None)
 
 
 @app.post("/v1/files")
@@ -234,6 +342,7 @@ def get_ingestion(request: Request, ingestion_id: str):
     fs_detail = read_model.get_ingestion(tenant_id=tenant_id, ingestion_id=ingestion_id)
     if detail is None:
         if fs_detail is None:
+            _log_ingestion_access_mismatch(request=request, tenant_id=tenant_id, ingestion_id=ingestion_id, surface="detail")
             return JSONResponse(status_code=404, content={"error": "not_found"})
         return {"ingestion": fs_detail, "artifacts": [], "errors": []}
     if fs_detail is not None:
@@ -242,11 +351,70 @@ def get_ingestion(request: Request, ingestion_id: str):
     return detail
 
 
+@app.delete("/v1/ingestions/{ingestion_id}")
+def delete_ingestion(request: Request, ingestion_id: str):
+    actor = _resolve_actor(request)
+    tenant_id = actor["tenant_id"]
+
+    detail = meta.get_ingestion_detail(tenant_id=tenant_id, ingestion_id=ingestion_id)
+    fs_detail = read_model.get_ingestion(tenant_id=tenant_id, ingestion_id=ingestion_id)
+    if detail is None and fs_detail is None:
+        return JSONResponse(status_code=404, content={"error": "not_found"})
+
+    if _is_running_ingestion(detail=detail, fs_detail=fs_detail):
+        raise HTTPException(status_code=409, detail="ingestion is still running and cannot be deleted yet")
+
+    gcs_uris = _collect_gcs_uris(detail=detail, fs_detail=fs_detail)
+    bq_tables = _collect_bq_tables(detail=detail, fs_detail=fs_detail)
+
+    deleted_gcs_uris: list[str] = []
+    for uri in gcs_uris:
+        try:
+            _delete_gcs_uri(uri)
+            deleted_gcs_uris.append(uri)
+        except Exception:
+            # Metadata cleanup remains the source of truth even if an artifact is already gone.
+            pass
+
+    deleted_bq_tables: list[str] = []
+    for table_id in bq_tables:
+        try:
+            bq.delete_table(table_id, not_found_ok=True)
+            deleted_bq_tables.append(table_id)
+        except Exception:
+            pass
+
+    meta.delete_ingestion_records(tenant_id=tenant_id, ingestion_id=ingestion_id)
+    read_model.delete_ingestion(tenant_id=tenant_id, ingestion_id=ingestion_id)
+
+    _log_event(
+        tenant_id=tenant_id,
+        ingestion_id=ingestion_id,
+        stage="ingestion",
+        status="deleted",
+        deleted_gcs_uris=deleted_gcs_uris,
+        deleted_bq_tables=deleted_bq_tables,
+        actor_sub=actor.get("sub") or "",
+        actor_email=actor.get("email") or "",
+    )
+    return {
+        "ok": True,
+        "ingestion_id": ingestion_id,
+        "deleted": {
+            "gcs_uris": deleted_gcs_uris,
+            "bq_tables": deleted_bq_tables,
+            "metadata": True,
+            "read_model": True,
+        },
+    }
+
+
 @app.get("/v1/ingestions/{ingestion_id}/overview")
 def get_ingestion_overview(request: Request, ingestion_id: str):
     tenant_id = _resolve_tenant_id(request)
     overview = read_model.get_overview(tenant_id=tenant_id, ingestion_id=ingestion_id)
     if overview is None:
+        _log_ingestion_access_mismatch(request=request, tenant_id=tenant_id, ingestion_id=ingestion_id, surface="overview")
         return JSONResponse(status_code=404, content={"error": "not_found"})
     return overview
 

@@ -296,6 +296,61 @@ class FirestoreReadModel:
         query = query.order_by("updated_at", direction=firestore.Query.DESCENDING).limit(limit)
         return [_serialize_doc(snap.to_dict() or {}) for snap in query.stream()]
 
+    def delete_ingestion(self, *, tenant_id: str, ingestion_id: str) -> dict[str, Any] | None:
+        ingestion_ref = self._ingestion_ref(tenant_id, ingestion_id)
+        snap = ingestion_ref.get()
+        if not snap.exists:
+            return None
+
+        data = snap.to_dict() or {}
+        collection_slug = str(data.get("collection_slug") or data.get("dataset") or "").strip() or None
+        self._delete_doc_recursive(ingestion_ref)
+
+        if collection_slug:
+            self._refresh_collection_stats(tenant_id=tenant_id, collection_slug=collection_slug)
+
+        return _serialize_doc(data)
+
+    def _refresh_collection_stats(self, *, tenant_id: str, collection_slug: str) -> None:
+        collection_ref = self._tenant_ref(tenant_id).collection("collections").document(collection_slug)
+        query = (
+            self._tenant_ref(tenant_id)
+            .collection("ingestions")
+            .where(filter=firestore.FieldFilter("collection_slug", "==", collection_slug))
+            .order_by("updated_at", direction=firestore.Query.DESCENDING)
+            .limit(1)
+        )
+        latest = next(query.stream(), None)
+        total = sum(1 for _ in self._tenant_ref(tenant_id).collection("ingestions").where(filter=firestore.FieldFilter("collection_slug", "==", collection_slug)).stream())
+
+        if total <= 0:
+            collection_ref.set(
+                {
+                    "last_ingestion_at": None,
+                    "updated_at": firestore.SERVER_TIMESTAMP,
+                    "ingestions_count": 0,
+                },
+                merge=True,
+            )
+            return
+
+        latest_data = latest.to_dict() if latest is not None else {}
+        collection_ref.set(
+            {
+                "last_ingestion_at": latest_data.get("updated_at"),
+                "updated_at": firestore.SERVER_TIMESTAMP,
+                "ingestions_count": total,
+            },
+            merge=True,
+        )
+
+    def _delete_doc_recursive(self, doc_ref: firestore.DocumentReference) -> None:
+        for subcollection in doc_ref.collections():
+            docs = list(subcollection.stream())
+            for child in docs:
+                self._delete_doc_recursive(child.reference)
+        doc_ref.delete()
+
 
 def _serialize_doc(value: Any) -> Any:
     if isinstance(value, dict):
